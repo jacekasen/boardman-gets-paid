@@ -39,15 +39,35 @@ def test_illegal_second_apron_trade():
 
 def test_dead_money_trade_rejection():
     """Verify that attempting to trade a dead-money/waived contract is rejected as illegal."""
-    trade = evaluate_trade(
-        team_a="POR",
-        send_a=["Damian Lillard"],  # Portland dead money stretch contract
+    # 1. Milwaukee waived and stretched Damian Lillard ($22.5M) -> Dead money on MIL
+    trade_mil = evaluate_trade(
+        team_a="MIL",
+        send_a=["Damian Lillard"],  # Milwaukee dead money stretch contract
         team_b="DET",
         send_b=["Isaiah Stewart"],
     )
+    assert not trade_mil.is_legal
+    assert any("Dead money contract violation" in v for v in trade_mil.violations)
 
-    assert not trade.is_legal
-    assert any("Dead money contract violation" in v for v in trade.violations)
+    # 2. Portland waived and stretched Deandre Ayton ($25.5M) -> Dead money on POR
+    trade_por = evaluate_trade(
+        team_a="POR",
+        send_a=["Deandre Ayton"],  # Portland dead money stretch contract
+        team_b="DET",
+        send_b=["Isaiah Stewart"],
+    )
+    assert not trade_por.is_legal
+    assert any("Dead money contract violation" in v for v in trade_por.violations)
+
+    # 3. Portland has Damian Lillard on active contract ($14.1M) -> Active roster asset (not dead money)
+    trade_active = evaluate_trade(
+        team_a="POR",
+        send_a=["Damian Lillard"],
+        team_b="DET",
+        send_b=["Isaiah Stewart"],
+    )
+    # Lillard on POR must NOT trigger a dead-money violation
+    assert not any("Dead money contract violation" in v for v in trade_active.violations)
 
 
 def test_invalid_player_team_rejection():

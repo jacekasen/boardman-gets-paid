@@ -26,6 +26,7 @@ class PlayerRecord(BaseModel):
     ws_per_48: float | None = Field(default=None, description="Win Shares per 48 minutes")
     war_vorp: float = Field(default=0.0, description="Wins Above Replacement calibrated as 2.70 * VORP")
     war_blend: float = Field(default=0.0, description="Blended Wins estimate: 0.5 * (2.70 * VORP) + 0.5 * WS")
+    war_projected: float = Field(default=0.0, description="Bayesian smoothed multi-season projected WAR prior")
 
 
 class TeamRecord(BaseModel):

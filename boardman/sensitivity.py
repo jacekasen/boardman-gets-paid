@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel
 
+from boardman.cba_rules import check_trade_compliance
 from boardman.config import (
     DEFAULT_SEASON,
     FRICTION_LAMBDA,
@@ -155,6 +156,8 @@ def scan_apron_escape_trades(
     other_teams = [t for t in df_teams["team"].unique() if t != team]
     flips: list[dict[str, Any]] = []
 
+    team_b_payrolls = df_teams.set_index("team")["total_payroll"].to_dict()
+
     for _, p_out in target_players.iterrows():
         p_out_name = str(p_out["player_name"])
         p_out_sal = float(p_out["salary"])
@@ -166,15 +169,26 @@ def scan_apron_escape_trades(
                 & (~df_players["is_dead_money"])
                 & (df_players["salary"] <= (p_out_sal - apron_excess))
             ]
+            b_payroll = team_b_payrolls.get(other_t, 0.0)
 
             for _, p_in in cand_players.iterrows():
                 p_in_name = str(p_in["player_name"])
                 p_in_sal = float(p_in["salary"])
-                p_in_war = float(p_in[metric_col])
-
                 salary_shed = p_out_sal - p_in_sal
                 if salary_shed < apron_excess:
                     continue
+
+                # Fast statutory CBA compliance pre-filter on partner team
+                comp_b = check_trade_compliance(
+                    team_code=other_t,
+                    pre_payroll=b_payroll,
+                    outgoing_contracts=[p_in_sal],
+                    incoming_contracts=[p_out_sal],
+                )
+                if not comp_b.is_compliant:
+                    continue
+
+                p_in_war = float(p_in[metric_col])
 
                 try:
                     res = evaluate_trade(

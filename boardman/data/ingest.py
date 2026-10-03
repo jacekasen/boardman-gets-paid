@@ -26,6 +26,7 @@ from boardman.config import (
     SALARY_CAP_2025_26,
     SECOND_APRON_2025_26,
     SOURCE_PLAYER_SALARIES,
+    SOURCE_PLAYER_SEASONS,
     SOURCE_PLAYER_STATS_RAW,
     SOURCE_TEAM_SALARIES,
     VORP_TO_WAR_MULTIPLIER,
@@ -82,12 +83,45 @@ def load_raw_stats(source_path: Path, season: str = DEFAULT_SEASON) -> pd.DataFr
     return collapse_player_stats(season_stats)
 
 
+def compute_multiseason_war_prior(
+    source_seasons_path: Path = SOURCE_PLAYER_SEASONS,
+) -> dict[str, float]:
+    """Compute a multi-season Bayesian WAR talent prior from historical player seasons (2023-24, 2024-25).
+    Weights recent seasons: 2024-25 (60%) and 2023-24 (40%).
+    """
+    if not source_seasons_path.exists():
+        logger.warning("Historical player seasons file missing at %s; returning empty priors.", source_seasons_path)
+        return {}
+
+    try:
+        df_hist = pd.read_csv(source_seasons_path)
+        recent = df_hist[df_hist["season"].isin(["2023-24", "2024-25"])].copy()
+        if recent.empty:
+            return {}
+
+        recent["war_vorp"] = recent["vorp"] * VORP_TO_WAR_MULTIPLIER
+        w_map = {"2024-25": 0.6, "2023-24": 0.4}
+        recent["w"] = recent["season"].map(w_map).fillna(0.5)
+        recent["weighted_war"] = recent["war_vorp"] * recent["w"]
+
+        priors: dict[str, float] = {}
+        for pid, group in recent.groupby("player_id"):
+            w_sum = group["w"].sum()
+            if w_sum > 0:
+                priors[str(pid)] = float(group["weighted_war"].sum() / w_sum)
+        return priors
+    except Exception as e:
+        logger.warning("Failed computing multiseason WAR prior: %s", e)
+        return {}
+
+
 def build_master_players(
     df_salaries: pd.DataFrame,
     df_stats: pd.DataFrame,
     season: str = DEFAULT_SEASON,
+    df_all_salaries: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Join salary cap sheets with public box-score impact metrics (VORP, WS, BPM)."""
+    """Join salary cap sheets with public box-score impact metrics (VORP, WS, BPM) and multi-season priors."""
     logger.info("Joining %d salary records with %d player stat records...", len(df_salaries), len(df_stats))
 
     # Keep relevant stat columns
@@ -119,6 +153,22 @@ def build_master_players(
     # Detect dead money allocations (only for players with multiple salary records where one is stretched/waived)
     multi_salary_pids = set(df_salaries["player_id"].value_counts()[lambda x: x > 1].index)
 
+    # Precompute prior season team mapping for multi-salary players without stats (e.g. Damian Lillard)
+    prior_teams_map: dict[str, set[str]] = {}
+    if df_all_salaries is not None and not df_all_salaries.empty:
+        s_prior = df_all_salaries[df_all_salaries["season"] == "2024-25"]
+        if not s_prior.empty:
+            for pid, group in s_prior.groupby("player_id"):
+                prior_teams_map[str(pid)] = set(group["team"].dropna().apply(normalize_team))
+    elif SOURCE_PLAYER_SALARIES.exists():
+        try:
+            raw_s = pd.read_csv(SOURCE_PLAYER_SALARIES)
+            s_prior = raw_s[raw_s["season"] == "2024-25"]
+            for pid, group in s_prior.groupby("player_id"):
+                prior_teams_map[str(pid)] = set(group["team"].dropna().apply(normalize_team))
+        except Exception as e:
+            logger.warning("Could not load prior season salaries: %s", e)
+
     def check_dead_money(row: pd.Series) -> bool:
         pid = row["player_id"]
         # If a player has only one salary row, it is their active contracted team, NEVER dead money
@@ -131,7 +181,16 @@ def build_master_players(
             if st_clean == t_clean or re.match(r"^\d+TM$", st_clean):
                 return False
             return True
-        # If no stats available (e.g. injured), secondary smaller contract allocations are dead money
+        # If no current-season stats available (e.g. injured star like Damian Lillard):
+        # The prior-season franchise that waived & stretched the contract is the DEAD MONEY row.
+        # The newly joined franchise is their ACTIVE roster contract.
+        prior_teams = prior_teams_map.get(str(pid), set())
+        t_clean = str(row["team"]).strip()
+        if prior_teams:
+            if t_clean in prior_teams:
+                return True
+            return False
+        # Fallback to secondary smaller contract allocation if prior team unknown
         player_rows = df_salaries[df_salaries["player_id"] == pid]
         max_salary = player_rows["salary"].max()
         return bool(row["salary"] < max_salary)
@@ -141,6 +200,23 @@ def build_master_players(
     # Compute Wins Above Replacement & Blended WAR
     merged["war_vorp"] = (merged["vorp"] * VORP_TO_WAR_MULTIPLIER).round(2)
     merged["war_blend"] = (0.5 * merged["war_vorp"] + 0.5 * merged["ws"]).round(2)
+
+    # Multi-season Bayesian WAR prior (addresses single-season injury blind spot for Tatum, Haliburton, etc.)
+    prior_war_map = compute_multiseason_war_prior()
+
+    def calc_projected_war(row: pd.Series) -> float:
+        pid = str(row["player_id"])
+        realized = float(row["war_vorp"])
+        prior = prior_war_map.get(pid)
+        if row["is_injured_zero_minutes"]:
+            # If injured with 0 minutes, apply a 25% injury shrinkage discount to their historical talent level
+            return round(prior * 0.75, 2) if prior is not None else 0.0
+        if prior is not None:
+            # Regress current snapshot toward multi-season talent prior (65% realized, 35% prior)
+            return round(0.65 * realized + 0.35 * prior, 2)
+        return round(realized, 2)
+
+    merged["war_projected"] = merged.apply(calc_projected_war, axis=1)
 
     # Ensure salary numeric
     merged["salary"] = merged["salary"].fillna(0.0).astype(float)
@@ -182,6 +258,7 @@ def build_master_players(
         "ws_per_48",
         "war_vorp",
         "war_blend",
+        "war_projected",
     ]
 
     return merged[final_columns].sort_values("salary", ascending=False).reset_index(drop=True), qa_summary
@@ -249,7 +326,12 @@ def run_ingestion(season: str = DEFAULT_SEASON) -> None:
     season_stats = load_raw_stats(SOURCE_PLAYER_STATS_RAW, season=season)
 
     # 3. Build master players table
-    df_players, qa_summary = build_master_players(season_salaries, season_stats, season=season)
+    df_players, qa_summary = build_master_players(
+        season_salaries,
+        season_stats,
+        season=season,
+        df_all_salaries=raw_salaries,
+    )
 
     # 4. Load team salaries and build master teams table
     if not SOURCE_TEAM_SALARIES.exists():
