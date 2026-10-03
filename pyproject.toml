@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "boardman-gets-paid"
+version = "0.1.0"
+description = "Modern NBA CBA roster constraint and non-linear apron surplus valuation engine"
+authors = [
+    { name = "Jace Kasen" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pyarrow>=14.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+]
+ui = [
+    "streamlit>=1.35.0",
+    "plotly>=5.18.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["boardman*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
