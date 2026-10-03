@@ -37,3 +37,9 @@ Thumbs.db
 # Data directories (raw / cached downloads)
 data/cache/
 *.tmp
+
+# Next.js frontend
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts

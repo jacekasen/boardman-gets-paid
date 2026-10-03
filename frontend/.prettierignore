@@ -1,0 +1,4 @@
+package-lock.json
+src/data/league.json
+.next
+node_modules

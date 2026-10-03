@@ -14,7 +14,18 @@
 
 ---
 
+The Next.js frontend is available in [`frontend/`](frontend/README.md). Start it from this repository with:
+
+```bash
+conda activate nba
+npm install --prefix frontend
+npm run dev
+```
+
+Open `http://localhost:3000` for the surplus board, team payrolls, and Python-backed trade lab. The trade API uses the `nba` Conda environment by default.
+
 ## Table of Contents
+
 1. [Executive Summary](#executive-summary)
 2. [The Problem: Linear Valuation vs. Non-Linear CBA Drag](#the-problem-linear-valuation-vs-non-linear-cba-drag)
 3. [The Core Finding & Flagship Conditional Trade](#the-core-finding--flagship-conditional-trade)
@@ -407,5 +418,3 @@ tests/test_valuation.py::test_league_surplus_board PASSED
 
 ============================== 36 passed in 2.16s ==============================
 ```
-
-
