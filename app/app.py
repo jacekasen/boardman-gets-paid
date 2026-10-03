@@ -1,15 +1,28 @@
 """Streamlit Interactive Evaluator for Board Man Gets Paid."""
 
-from __future__ import annotations
+import sys
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-from app.components import (
-    BRACKET_NAMES,
-    render_surplus_scatter,
-    render_trade_delta_cards,
-)
+# Ensure repository root is on sys.path regardless of execution directory
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+try:
+    from app.components import (
+        BRACKET_NAMES,
+        render_surplus_scatter,
+        render_trade_delta_cards,
+    )
+except ModuleNotFoundError:
+    from components import (
+        BRACKET_NAMES,
+        render_surplus_scatter,
+        render_trade_delta_cards,
+    )
 from boardman.case_studies import (
     run_cleveland_second_apron_trap,
     run_kawhi_circumvention_case_study,
