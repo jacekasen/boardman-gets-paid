@@ -25,7 +25,7 @@ def test_calculate_historical_apron_clustering():
 
 
 def test_second_apron_attrition_trend():
-    """Verify that teams above the Second Apron decline over time (4 -> 3 -> 1)."""
+    """Verify that teams above the Second Apron decline over time (4 -> 3 -> 1) and test Fisher p-values."""
     df_clust = calculate_historical_apron_clustering()
     summary = summarize_clustering_evidence(df_clust)
 
@@ -34,11 +34,21 @@ def test_second_apron_attrition_trend():
     assert trend["2024-25"] == 3
     assert trend["2025-26"] == 1
 
+    # Verify Fisher exact metrics
+    assert summary["fisher_p_bunching"] == 0.4965
+    assert summary["fisher_p_ratio"] == 1.0
+    assert summary["luxury_tax_bunching"]["pre_cba_below_within_3m"] == 24
+    assert summary["luxury_tax_bunching"]["pre_cba_above_within_3m"] == 1
+    assert "underpowered" in summary["methodological_note"]
+
 
 def test_build_clustering_plot():
-    """Verify Plotly figure generation for apron clustering distribution."""
+    """Verify Plotly figure generation for apron clustering distribution and placebo line."""
     df_clust = calculate_historical_apron_clustering()
     fig = build_clustering_plot(df_clust)
 
     assert fig is not None
-    assert len(fig.data) == 2  # Pre-CBA and Post-CBA traces
+    assert len(fig.data) == 2  # Pre-CBA Placebo and Post-CBA traces
+    assert "Placebo" in fig.data[0].name
+    assert "Two-Apron" in fig.data[1].name
+

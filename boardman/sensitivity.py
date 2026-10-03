@@ -325,3 +325,92 @@ def calculate_ranking_elasticity(
 
     # Sort by largest downward penalty caused by the apron friction tax
     return df_active.sort_values("friction_tax", ascending=False).reset_index(drop=True)
+
+
+def calculate_headline_uncertainty(
+    team_a: str = "CLE",
+    send_a: list[str] | None = None,
+    team_b: str = "DET",
+    send_b: list[str] | None = None,
+    n_trials: int = 10000,
+    seed: int = 42,
+    lambda_3_min: float = 0.40,
+    lambda_3_max: float = 0.85,
+    war_sigma: float = 0.35,
+    df_players: pd.DataFrame | None = None,
+    df_teams: pd.DataFrame | None = None,
+    cost_per_win: float = DEFAULT_COST_PER_WIN,
+    metric_col: str = "war_vorp",
+) -> dict[str, Any]:
+    """Execute a Monte Carlo simulation quantifying parameter and measurement uncertainty for the headline Cleveland escape.
+
+    Simulates joint uncertainty across:
+    1. Second Apron friction penalty elasticity: lambda_3 ~ Uniform(lambda_3_min, lambda_3_max)
+    2. Player performance measurement noise: Delta_WAR_noise ~ Normal(0, war_sigma)
+
+    Returns probability that the apron escape remains value-accretive (Delta NSV > 0) along with
+    distributional summary statistics and 90% credible intervals.
+    """
+    if send_a is None:
+        send_a = ["Jarrett Allen"]
+    if send_b is None:
+        send_b = ["Isaiah Stewart"]
+
+    if df_players is None:
+        df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
+    if df_teams is None:
+        df_teams = pd.read_parquet(MASTER_TEAMS_PARQUET)
+
+    roster_a = df_players[df_players["team"] == team_a]
+    roster_b = df_players[df_players["team"] == team_b]
+
+    sal_out = float(roster_a[roster_a["player_name"].isin(send_a)]["salary"].sum())
+    sal_in = float(roster_b[roster_b["player_name"].isin(send_b)]["salary"].sum())
+    sal_saved = sal_out - sal_in
+
+    war_out = float(roster_a[roster_a["player_name"].isin(send_a)][metric_col].sum())
+    war_in = float(roster_b[roster_b["player_name"].isin(send_b)][metric_col].sum())
+    war_delta = war_in - war_out
+
+    # Calculate actual pre-trade and post-trade roster quadratic bases
+    base_pre = float(sum((s**2) / SALARY_CAP_2025_26 for s in roster_a["salary"]))
+    post_salaries = [s for p, s in zip(roster_a["player_name"], roster_a["salary"]) if p not in send_a] + [sal_in]
+    base_post = float(sum((s**2) / SALARY_CAP_2025_26 for s in post_salaries))
+
+    # Statutory First Apron friction parameter
+    lambda_2 = FRICTION_LAMBDA[2]  # 0.35
+
+    # Run Monte Carlo trials
+    rng = np.random.default_rng(seed)
+    lambda_3_samples = rng.uniform(lambda_3_min, lambda_3_max, size=n_trials)
+    war_noise_samples = rng.normal(0.0, war_sigma, size=n_trials)
+
+    sim_war_deltas = war_delta + war_noise_samples
+    sim_friction_relief = (lambda_3_samples * base_pre) - (lambda_2 * base_post)
+    sim_delta_nsv = sal_saved + sim_friction_relief + (sim_war_deltas * cost_per_win)
+
+    win_prob = float(np.mean(sim_delta_nsv > 0))
+    mean_nsv = float(np.mean(sim_delta_nsv))
+    median_nsv = float(np.median(sim_delta_nsv))
+    ci_90 = np.percentile(sim_delta_nsv, [5, 95])
+
+    return {
+        "team_a": team_a,
+        "send_a": send_a,
+        "team_b": team_b,
+        "send_b": send_b,
+        "n_trials": n_trials,
+        "lambda_3_range": [lambda_3_min, lambda_3_max],
+        "war_sigma": war_sigma,
+        "win_probability": round(win_prob, 4),
+        "mean_delta_nsv": round(mean_nsv, 2),
+        "median_delta_nsv": round(median_nsv, 2),
+        "credible_interval_90": [round(float(ci_90[0]), 2), round(float(ci_90[1]), 2)],
+        "headline_takeaway": (
+            f"Across {n_trials:,} Monte Carlo trials sampling lambda_3 in [{lambda_3_min:.2f}, {lambda_3_max:.2f}] "
+            f"and WAR measurement error sigma={war_sigma:.2f}, Cleveland's Second Apron escape remains net-positive "
+            f"in {win_prob * 100:.1f}% of simulated scenarios (mean Delta NSV +${mean_nsv / 1_000_000.0:.2f}M, "
+            f"90% credible interval [${ci_90[0] / 1_000_000.0:.2f}M, +${ci_90[1] / 1_000_000.0:.2f}M])."
+        ),
+    }
+

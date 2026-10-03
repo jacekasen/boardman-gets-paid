@@ -70,23 +70,27 @@ This represents a **4.1x expansion in tolerable on-court talent loss**, demonstr
 
 ---
 
-## Real-World Empirical Benchmarks: Salary Dumps & Apron Discontinuity
+## Real-World Empirical Benchmarks: Salary Dumps, Placebos & Apron Discontinuity
 
 ### 1. Denver Nuggets / Reggie Jackson Salary Dump (June 27, 2024)
-- **Context:** Denver was $\approx \$4.07\text{M}$ above the 2024–25 Second Apron ($\$188.93\text{M}$).
+- **Context:** Denver sat $\approx \$4.07\text{M}$ above the 2024–25 Second Apron ($\$188.93\text{M}$).
 - **The Transaction:** Denver sent Reggie Jackson ($\$5,250,000$) and **three second-round draft picks** (2025, 2029, 2030) to Charlotte for $\$0$ in incoming salary.
-- **Economic Valuation:** In public draft-value literature (Pelton, Cranston, 538), mid-to-high 2nd round picks hold an average surplus equity of $\approx \$2.67\text{M}$ each. Total economic cost willingly paid by Denver: $\$5.25\text{M} + \$8.00\text{M} = \mathbf{\$13.25\text{M}}$.
-- **Revealed-Preference Constraint:** The transaction is rational if and only if $\Delta \text{Friction Relief} \ge \$13.25\text{M}$. Evaluating across Denver's rotation salary base ($\$35\text{M} - \$45\text{M}$) implies:
-  $$\lambda_3 \in [\mathbf{0.55}, \mathbf{0.78}] \quad (\text{Midpoint } \approx \mathbf{0.67})$$
-  This directly corroborates our model's hypothesized baseline of $\lambda_3 = 0.70$.
+- **Econometric Sign Correction (Net Cost Paid):** Shedding Jackson saved Denver $\$5.25\text{M}$ in salary and associated luxury tax cash. Surrendering 3 second-round picks ($\approx \$8.0\text{M}$ surplus equity at $\$2.67\text{M}$/pick) against $\$5.25\text{M}$ saved results in a **net economic asset cost paid**:
+  $$\text{Net Cost} = E - S = \$8.00\text{M} - \$5.25\text{M} = \mathbf{\$2.75\text{M}}$$
+- **Revealed-Preference Lower Bound:** Rational execution implies $\Delta \text{Friction Relief} \ge \text{Net Cost}$. Across Denver's 2024–25 quadratic roster bases ($B_{\text{pre}} = \$42.25\text{M}, B_{\text{post}} = \$42.05\text{M}$):
+  $$\lambda_3 \ge \frac{\$2.75\text{M} + 0.35 \times B_{\text{post}}}{B_{\text{pre}}} \ge \mathbf{0.41} \quad (\text{or } \ge \mathbf{0.48} \text{ if Jackson cost } 0.5\text{ WAR})$$
+- **Knife-Edge Reality:** Market salary dumps bound $\lambda_3$ from below. Our Cleveland apron escape flip requires $\lambda_3 \ge 0.46$. The real transaction data loosely bounds $\lambda_3$ right on the knife-edge of Cleveland's break-even point.
 
-### 2. Multi-Season Econometric Payroll Bunching (2020–2026)
-Analyzing 180 team-seasons across 2020–2026 confirms that general managers treat the Second Apron as a sharp operational discontinuity:
-- **2023–24 Milwaukee Bucks:** Finished at **$\$182.23\text{M}$** (exactly **$-\$0.57\text{M}$** below the 2nd Apron).
-- **2024–25 Los Angeles Lakers:** Finished at **$\$188.02\text{M}$** (exactly **$-\$0.91\text{M}$** below the 2nd Apron).
-- **2025–26 New York Knicks:** Finished at **$\$207.45\text{M}$** (exactly **$-\$0.37\text{M}$** below the 2nd Apron).
-- **2025–26 Golden State Warriors:** Finished at **$\$204.12\text{M}$** (**$-\$3.70\text{M}$** below the 2nd Apron).
-- **Second Apron Contender Attrition:** Teams above the Second Apron collapsed from 4 in 2023–24 to 3 in 2024–25 to **only 1 team (Cleveland)** in 2025–26.
+### 2. Multi-Season Econometric Payroll Bunching, Placebo Controls & Statistical Power (2020–2026)
+Analyzing 180 team-seasons across 2020–2026 reveals:
+- **Second Apron Bunching:** Post-2023 NBA payrolls exhibit suggestive bunching immediately below the Second Apron (6 team-seasons in the $-\$5\text{M}$ to $\$0$ band: NYK $-\$0.37\text{M}$, GSW $-\$3.70\text{M}$, LAL $-\$0.91\text{M}$, MIL $-\$0.57\text{M}$).
+- **Synthetic Placebo Comparison & Fisher Exact Test:** Because the Second Apron did not exist prior to 2023, the pre-2023 curve is an explicit synthetic placebo line. A two-sided Fisher Exact Test yields $p \approx 0.50$ (ratio within $\pm\$5\text{M}$ yields $p = 1.00$), acknowledging that at $N=90$ team-seasons post-CBA, Second Apron bunching is statistically underpowered.
+- **Verified Luxury Tax Bunching:** In contrast, the Luxury Tax threshold has existed across both eras. Within $\pm\$3\text{M}$ of the tax line, teams bunch heavily below rather than above:
+  - *Pre-CBA (2020–2023):* **24 below vs. 1 above**
+  - *Post-CBA (2023–2026):* **23 below vs. 6 above**
+  - Proving that NBA front offices demonstrably avoid statutory tax cliffs when financial penalties bite.
+- **Second Apron Contender Attrition:** Teams above the Second Apron collapsed from 4 in 2023–24 to 3 in 2024–25 to **only 1 team (Cleveland)** in 2025–26 ($-75\%$ attrition).
+
 
 ---
 

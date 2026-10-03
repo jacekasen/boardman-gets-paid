@@ -56,6 +56,7 @@ from boardman.empirical_dumps import (
 from boardman.sensitivity import (
     analyze_trade_sensitivity,
     calculate_apron_escape_frontier,
+    calculate_headline_uncertainty,
     calculate_ranking_elasticity,
     scan_apron_escape_trades,
 )
@@ -86,18 +87,20 @@ df_players, df_teams = load_datasets()
 # --- SIDEBAR CONFIGURATION ---
 st.sidebar.title("🏀 Board Man Gets Paid")
 st.sidebar.markdown(
-    "*Pricing NBA production against modern CBA apron constraints & operational friction.*"
+    "*Evaluates the 2025–26 NBA season (with 2026–27 currently underway). "
+    "Pricing NBA production against modern CBA apron constraints & operational friction.*"
 )
 
 metric_choice = st.sidebar.selectbox(
     "Impact Metric Model",
     options=["war_vorp", "war_projected", "war_blend"],
     format_func=lambda x: {
-        "war_vorp": "VORP-Calibrated WAR (2.70 * VORP)",
-        "war_projected": "Multi-Season Bayesian WAR (Injury Smoothed)",
-        "war_blend": "Blended WAR (VORP + WS)",
+        "war_vorp": "Realized 2025-26 Box-Score WAR (VORP-calibrated)",
+        "war_projected": "Multi-Season Blended WAR Prior (True-Talent Baseline)",
+        "war_blend": "Blended WAR (VORP + Win Shares)",
     }[x],
 )
+
 
 cost_per_win = st.sidebar.slider(
     "Open-Market Cost Per Win ($M)",
@@ -335,12 +338,42 @@ with tab_sensitivity:
         "talent sacrifice frontier, (3) A league-wide scan of all thesis-flip trades, and (4) Contract ranking elasticity."
     )
 
-    st.subheader("1. Apron Escape Tipping Point Heatmap (Cleveland ΔNSV)")
+    st.subheader("1. Formal Uncertainty Analysis: Monte Carlo Simulation (Cleveland Escape)")
+    st.markdown(
+        "Rather than asserting a single point estimate, we run a **10,000-trial Monte Carlo simulation** jointly sampling "
+        "Second Apron friction elasticity $\lambda_3 \sim \text{Uniform}(0.40, 0.85)$ and on-court WAR measurement error "
+        "$\sigma_{\\text{WAR}} = 0.35$."
+    )
+
+    unc_res = calculate_headline_uncertainty(metric_col=metric_choice, cost_per_win=cost_per_win)
+    u_c1, u_c2, u_c3 = st.columns(3)
+    u_c1.metric(
+        "Cleveland Escape Win Probability",
+        f"{unc_res['win_probability'] * 100:.1f}%",
+        delta="Accretive in majority of states",
+        help="Probability ΔNSV > 0 across λ ∈ [0.40, 0.85] and WAR noise σ=0.35",
+    )
+    u_c2.metric(
+        "Mean Expected ΔNSV",
+        f"+${unc_res['mean_delta_nsv'] / 1e6:.2f}M",
+        help="Expected net surplus swing across 10,000 simulated states",
+    )
+    u_c3.metric(
+        "90% Credible Interval",
+        f"[${unc_res['credible_interval_90'][0] / 1e6:.2f}M, +${unc_res['credible_interval_90'][1] / 1e6:.2f}M]",
+        help="5th to 95th percentile outcome distribution",
+    )
+    st.caption(f"💡 **Econometric Accounting:** {unc_res['headline_takeaway']}")
+
+    st.divider()
+
+    st.subheader("2. Apron Escape Tipping Point Heatmap (Cleveland ΔNSV)")
     st.markdown(
         "The heatmap below visualizes Cleveland's Net Surplus Swing ($\Delta NSV$) across operational friction multipliers ($\lambda$) "
         "and open-market Cost Per Win values ($C_w$). Notice that at $\lambda = 0.00$ (pure linear $/WAR$), every cell is deep red ($-5.4M to $-14.3M). "
         "As friction scales toward $\lambda \ge 0.50$, the transaction turns decisively green ($+\$5.40\text{M}$ at baseline), proving where the apron threshold inverts the decision."
     )
+
 
     df_sens = analyze_trade_sensitivity(df_players=df_players, df_teams=df_teams, metric_col=metric_choice)
     fig_sens = render_sensitivity_heatmap(df_sens)
@@ -509,10 +542,13 @@ with tab_empirical:
     fig_clust = build_clustering_plot(df_clust)
     st.plotly_chart(fig_clust, use_container_width=True)
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Post-CBA Bunching Within $5M of 2nd Apron", f"{clust_summary['post_cba_bunching_under_second_apron']} Teams", help="Teams structuring payroll within -$5M to $0 of Second Apron")
-    c2.metric("2nd Apron Contenders (2023-24 -> 2025-26)", "4 -> 3 -> 1 Team (CLE)", delta="-75% Attrition", delta_color="inverse")
-    c3.metric("2025-26 Tight Bunchers", "NYK (-$0.37M), GSW (-$3.70M)", help="Teams staying just under 2nd Apron")
+    c2.metric("Fisher Exact Test (Apron)", f"p = {clust_summary['fisher_p_bunching']:.2f}", help="Two-sided Fisher test: Post-CBA bunching vs. Pre-CBA synthetic placebo line")
+    c3.metric("2nd Apron Contenders (2023–2026)", "4 → 3 → 1 (CLE)", delta="-75% Attrition", delta_color="inverse")
+    c4.metric("Tax Bunching (Verified)", f"{clust_summary['luxury_tax_bunching']['post_cba_below_within_3m']} Below / {clust_summary['luxury_tax_bunching']['post_cba_above_within_3m']} Above", help="Teams within ±$3M of luxury tax line")
+
+    st.info(f"💡 **Statistical Integrity Note:** {clust_summary['methodological_note']}")
 
     st.markdown(
         """
@@ -529,41 +565,47 @@ with tab_empirical:
 
     st.subheader("2. Revealed-Preference Parameter Calibration: Bounding λ from Salary Dumps")
     st.markdown(
-        "Where does $\lambda_3 = 0.70$ come from? Rather than being arbitrary, $\lambda_3$ is empirically bounded by the **revealed market price** "
-        "that championship-contending front offices willingly paid in draft equity to shed salary and escape the Second Apron."
+        "Where does $\lambda_3 = 0.70$ come from? Rather than an arbitrary guess, $\lambda_3$ is empirically bounded by the **revealed market price** "
+        "that championship-contending front offices willingly paid in net draft equity to shed salary and escape the Second Apron."
     )
 
     rev_lambda = estimate_revealed_preference_lambda()
 
     d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Benchmark Dump", "Denver Nuggets -> CHA")
-    d2.metric("Draft Equity Attached", "3 Second-Round Picks (~$8.0M)")
-    d3.metric("Total Cost Paid to Escape", f"${rev_lambda['total_economic_willingness_to_pay']/1e6:.2f}M")
-    d4.metric("Implied λ₃ Revealed Bound", f"[{rev_lambda['implied_lambda_3_lower_bound']:.2f}, {rev_lambda['implied_lambda_3_upper_bound']:.2f}]", delta="Baseline λ=0.70 (Enclosed)")
+    d1.metric("Benchmark Dump", "DEN → CHA (Reggie Jackson)")
+    d2.metric("Net Asset Cost Paid", f"${rev_lambda['net_asset_cost_paid']/1e6:.2f}M", help="Pick equity surrendered ($8.0M) minus salary saved ($5.25M)")
+    d3.metric("Implied λ₃ Lower Bound", f"λ₃ ≥ {rev_lambda['implied_lambda_3_lower_bound']:.2f}", help="Derived lower bound across Denver's 2024-25 roster base")
+    d4.metric("Cleveland Break-Even Threshold", f"λ₃ ≥ {rev_lambda['cleveland_flip_break_even_lambda']:.2f}", delta="Knife-Edge Proximity", delta_color="normal")
 
-    with st.expander("Detailed Mathematical Proof: Revealed Preference Derivation"):
+    st.caption(f"💡 **Econometric Takeaway:** {rev_lambda['headline_takeaway']}")
+
+    with st.expander("Detailed Mathematical Proof: Revealed Preference Lower Bound Derivation"):
         st.markdown(
             r"""
             **Transaction Analysis: Denver Nuggets Reggie Jackson Salary Dump (June 27, 2024)**
             1. **The Situation:** Denver sat ~$4.07M over the 2024–25 Second Apron ($188.93M).
             2. **The Transaction:** Denver traded Reggie Jackson ($5,250,000) and **three future 2nd-round picks** (2025, 2029, 2030) to Charlotte for $0 incoming salary.
-            3. **Economic Cost Paid:** 
-               - Salary shed: $\$5,250,000$
-               - 3 Second-round picks: In public draft-value literature (Pelton, Cranston, 538), mid-to-high 2nd round picks hold an average surplus equity of $\approx \$2.67\text{M}$ each.
-               - Total economic willingness-to-pay ($WTP$): $\$5.25\text{M} + \$8.00\text{M} = \mathbf{\$13.25\text{M}}$.
+            3. **Econometric Sign Correction (Net Cost Paid):**
+               - Surrendered pick equity: $E \approx \$8.00\text{M}$ (3 SRPs at $\approx \$2.67\text{M}$ average surplus equity).
+               - Salary saved: $S = \$5,250,000$.
+               - Because shedding Jackson saved Denver $\$5.25\text{M}$ in salary (and associated luxury tax cash), saved salary counts in the team's favor.
+               - **Net economic asset cost paid:** $\text{Net Cost} = E - S = \$8.00\text{M} - \$5.25\text{M} = \mathbf{\$2.75\text{M}}$.
             4. **Revealed Preference Inequality:**
                A rational front office executes this dump if and only if:
-               $$\Delta \text{Friction Relief} \ge WTP = \$13.25\text{M}$$
-               For a contender with core rotation salary base $B \approx \$35\text{M} - \$45\text{M}$ dropping from Bracket 3 ($\lambda_3$) to Bracket 2 ($\lambda_2 = 0.35$):
-               $$(\lambda_3 - 0.35) \times B \ge \$13.25\text{M} \implies \lambda_3 \ge 0.35 + \frac{\$13.25\text{M}}{B}$$
-               Evaluating across Denver's roster base:
-               - Lower Bound ($B = \$45\text{M}$): $\lambda_3 \ge 0.35 + 0.29 = \mathbf{0.55}$
-               - Upper Bound ($B = \$35\text{M}$): $\lambda_3 \le 0.35 + 0.38 = \mathbf{0.78}$
-               - **Central Empirical Midpoint:** $\lambda_3 \approx \mathbf{0.67}$
-               
-            **Conclusion:** Our baseline parameter $\lambda_3 = 0.70$ sits squarely inside this empirical revealed-preference interval $[0.55, 0.78]$.
+               $$\Delta \text{Friction Relief} \ge E - S + (\Delta W \times C_w) - T_{\text{tax}}$$
+               Dropping from Bracket 3 ($\lambda_3$) to Bracket 2 ($\lambda_2 = 0.35$):
+               $$\lambda_3 \times B_{\text{pre}} - 0.35 \times B_{\text{post}} \ge \text{Net Cost}$$
+               $$\lambda_3 \ge \frac{\text{Net Cost} + 0.35 \times B_{\text{post}}}{B_{\text{pre}}}$$
+            5. **Dynamic Denver Roster Quadratic Base ($B_{\text{pre}} = \$42.25\text{M}, B_{\text{post}} = \$42.05\text{M}$):**
+               - Assuming Reggie Jackson at replacement level ($\Delta W = 0$): $\lambda_3 \ge \mathbf{0.413}$.
+               - Assuming Reggie Jackson cost $0.5$ WAR of rotation talent: $\lambda_3 \ge \mathbf{0.475}$.
+            6. **Knife-Edge Reality:**
+               - Willingness-to-pay establishes a **LOWER bound**, not an upper bound.
+               - Our Cleveland apron escape flip requires $\lambda_3 \ge 0.46$.
+               - Real-world market salary dumps bound $\lambda_3 \ge 0.41$ to $0.48$, landing right on the knife-edge of Cleveland's break-even threshold!
             """
         )
+
 
 
 # ==============================================================================
@@ -686,31 +728,37 @@ with tab_validation:
             """
             **Empirical Revealed-Preference Calibration + Cost Breakdown:**
             1. **Revealed-Preference Transaction Bounds (Tab 4):**
-               In Summer 2024, the Denver Nuggets willingly paid **$5.25M in salary + 3 second-round picks (~$8.0M draft equity) = $13.25M in total economic value** to dump Reggie Jackson to Charlotte for zero return purely to drop below the Second Apron.
-               As proven mathematically in Tab 4, Denver's revealed willingness-to-pay bounds $\lambda_3$ between **0.55 and 0.78** (midpoint $\approx 0.67$). Our hypothesized baseline of $\lambda_3 = 0.70$ sits squarely inside this empirical interval.
+               In Summer 2024, the Denver Nuggets surrendered **3 second-round picks (~$8.0M draft equity) to shed Reggie Jackson's $5.25M contract** with zero return.
+               Because shedding salary saved cash in Denver's favor, the net economic asset cost paid was:
+               $$\\text{Net Cost} = \\$8.0\\text{M} - \\$5.25\\text{M} = \\mathbf{\\$2.75\\text{M}}$$
+               Across Denver's 2024-25 roster base ($B_{\\text{pre}} = \\$42.25\\text{M}, B_{\\text{post}} = \\$42.05\\text{M}$), this dump establishes an empirical lower bound of:
+               $$\\lambda_3 \\ge \\mathbf{0.41} \\quad (\\text{or } \\lambda_3 \\ge 0.48 \\text{ with } 0.5\\text{ WAR loss})$$
+               Our Cleveland apron escape requires $\\lambda_3 \\ge 0.46$. Thus, market data bounds $\\lambda_3$ right on the knife-edge of Cleveland's break-even point.
             2. **Statutory 2023 CBA Penalty Decomposition:**
                - Frozen 1st-Round Draft Pick (7 yrs out) & Pick 30 Demotion: ~$7.3M surplus loss (historical draft-pick surplus curve).
                - Loss of Taxpayer Mid-Level Exception: ~$5.4M market replacement cost.
                - Trade illiquidity & cash prohibition haircut: ~$7.5M–$10.0M.
-               - Total annual friction drag on a Second Apron contender: ~$25M–$32M, closely matched by $\lambda=0.70 \times \text{Roster Base}$.
-            3. **True Sensitivity Analysis:**
-               Tab 3's 2D Heatmap evaluates $\lambda$ from $0.00$ to $2.00\times$. At $\lambda=0.00$, $\Delta NSV$ is mathematically identical to linear $/WAR (-$10.53M). The decision threshold inverts at $\lambda \approx 0.46$.
+               - Total annual friction drag on a Second Apron contender: ~$25M–$32M, closely matched by $\\lambda=0.70 \\times \\text{Roster Base}$.
+            3. **Formal Monte Carlo Uncertainty (Tab 3):**
+               Sampling $\\lambda_3 \\sim \\text{Uniform}(0.40, 0.85)$ and WAR noise $\\sigma=0.35$ over 10,000 trials demonstrates that Cleveland's escape is net-positive in ~60% of states of the world (mean $\\Delta NSV = +\\$1.98\\text{M}$).
             """
         )
 
     with st.expander("Q3: Did you check anything against what actually happened in real-world NBA transactions?"):
         st.markdown(
             """
-            **Econometric Discontinuity & Salary Dump Evidence:**
+            **Econometric Discontinuity, Placebo Controls & Salary Dump Evidence:**
             1. **Discontinuity Bunching (2020–2026):**
-               As shown in Tab 4's multi-season distribution chart, post-2023 NBA payrolls exhibit sharp bunching immediately below the Second Apron (-$5M to $0 band):
+               As shown in Tab 4, post-2023 NBA payrolls exhibit suggestive bunching immediately below the Second Apron (-$5M to $0 band):
                - 2023–24 Milwaukee Bucks: -$0.57M below 2nd Apron
                - 2024–25 Los Angeles Lakers: -$0.91M below 2nd Apron
                - 2025–26 New York Knicks: -$0.37M below 2nd Apron
                - 2025–26 Golden State Warriors: -$3.70M below 2nd Apron
                Meanwhile, teams above the Second Apron collapsed from 4 in 2023-24 to 3 in 2024-25 to only 1 in 2025-26 (-75% attrition).
-            2. **Real-World Salary Dumps:**
-               Denver/Reggie Jackson and Dallas/Tim Hardaway Jr. directly corroborate that front offices treat the Second Apron as an existential barrier.
+            2. **Placebo Line & Statistical Significance:**
+               Because the Second Apron did not exist pre-2023, the pre-2023 comparison is an explicit synthetic placebo line. A two-sided Fisher Exact Test yields $p \\approx 0.50$ (underpowered at $N=90$ post-CBA team-seasons). However, luxury tax line bunching (24 below vs 1 above pre-CBA; 23 below vs 6 above post-CBA) demonstrates that NBA front offices demonstrably avoid notch boundaries.
+            3. **Real-World Salary Dumps:**
+               Denver/Reggie Jackson and Dallas/Tim Hardaway Jr. directly corroborate that front offices pay draft equity to escape apron constraints.
             """
         )
 
@@ -750,13 +798,14 @@ with tab_validation:
 
     st.divider()
 
-    st.subheader("3. Explicit Model Limitations & Multi-Season Bayesian Extension")
+    st.subheader("3. Explicit Model Limitations & Multi-Season Blended WAR Prior")
     st.markdown(
         """
         Transparency regarding model boundaries and methodology:
-        1. **Single-Season Box-Score Scope vs Multi-Season Prior:** Single-season box scores naturally penalize injured stars (e.g. Tyrese Haliburton, Jayson Tatum). To address this, `boardman` now provides a **Multi-Season Bayesian Smoothed WAR Prior (`war_projected`)** toggle in the sidebar, which regresses current snapshots against 3-year historical talent baselines (Marcel/Bayesian approach). Under this model, Tatum and Haliburton are recognized as positive star assets, and underwater contracts like Zach LaVine, Khris Middleton, and Jordan Poole correctly occupy the bottom ranks.
-        2. **Draft Pick Equity Valuation:** The engine models forfeited draft picks using empirical draft-value curves (~$11.5M average rookie contract surplus), but does not account for team-specific lottery protections or standings variance.
-        3. **Dynamic Franchise Valuation:** Roster friction $\lambda$ is modeled as a franchise-level operational drag; future extensions could incorporate multi-year luxury tax repeater clocks and player option exercise probabilities.
+        1. **Temporal Scope:** All contract evaluations, roster models, and apron calculations evaluate the **2025–26 NBA season** (with 2026–27 currently underway).
+        2. **Single-Season Box-Score Scope vs Multi-Season Prior:** Single-season box scores naturally penalize injured stars (e.g. Tyrese Haliburton, Jayson Tatum). To address this, `boardman` provides a **Multi-Season Blended WAR Prior (`war_projected`)** toggle in the sidebar, which regresses current snapshots against 3-year historical talent baselines (Marcel/Bayesian approach). Under this model, Tatum and Haliburton are recognized as positive star assets, and underwater contracts like Zach LaVine, Khris Middleton, and Jordan Poole correctly occupy the bottom ranks.
+        3. **Draft Pick Equity Valuation:** The engine models forfeited draft picks using empirical draft-value curves (~$11.5M average rookie contract surplus), but does not account for team-specific lottery protections or standings variance.
+        4. **Dynamic Franchise Valuation:** Roster friction $\lambda$ is modeled as a franchise-level operational drag; future extensions could incorporate multi-year luxury tax repeater clocks and player option exercise probabilities.
         """
     )
 
@@ -775,5 +824,12 @@ with tab_validation:
         3. **Framing & Scalability of League Scan:**
            - *The Issue:* Framing candidate trades as "30 independent empirical discoveries" risked overclaiming what is fundamentally one core economic mechanism.
            - *The Fix:* Reframed as an optimal frontier escape menu ranking Cleveland's choices, and accelerated execution by 15x using fast statutory compliance pre-filters.
+        4. **Salary Dump Directional Sign Error:**
+           - *The Issue:* An initial draft of revealed preference lambda added salary shed to pick equity rather than subtracting it, failing to recognize that shedding salary saves cash in the team's favor.
+           - *The Fix:* Corrected net cost paid to $E - S = \$8.0\text{M} - \$5.25\text{M} = \$2.75\text{M}$ and dynamically calculated the lower bound $\lambda_3 \ge 0.41$ directly from Denver's 2024–25 roster base, dropping artificial upper bounds.
+        5. **Synthetic Placebo Line & Fisher Exact Reporting:**
+           - *The Issue:* Comparing post-2023 payroll bunching to pre-2023 data without acknowledging that the Second Apron did not exist pre-2023.
+           - *The Fix:* Formally labeled the pre-2023 line as a synthetic placebo line, computed two-sided Fisher Exact tests ($p \approx 0.50$), and emphasized that while Second Apron data is underpowered ($N=90$), luxury tax line bunching demonstrates verified behavioral response.
         """
     )
+

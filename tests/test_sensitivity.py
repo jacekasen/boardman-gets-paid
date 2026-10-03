@@ -5,9 +5,11 @@ import numpy as np
 from boardman.sensitivity import (
     analyze_trade_sensitivity,
     calculate_apron_escape_frontier,
+    calculate_headline_uncertainty,
     calculate_ranking_elasticity,
     scan_apron_escape_trades,
 )
+
 
 
 def test_analyze_trade_sensitivity():
@@ -76,3 +78,14 @@ def test_calculate_ranking_elasticity():
     # Heavily penalized Second Apron stars must show negative rank shift
     cle_stars = df_rank[df_rank["team"] == "CLE"]
     assert (cle_stars["friction_tax"] > 5_000_000.0).any()
+
+
+def test_calculate_headline_uncertainty():
+    """Verify Monte Carlo simulation metrics for the headline Cleveland escape."""
+    res = calculate_headline_uncertainty(n_trials=2000, seed=42)
+    assert 0.55 <= res["win_probability"] <= 0.65
+    assert res["mean_delta_nsv"] > 0
+    assert len(res["credible_interval_90"]) == 2
+    assert res["credible_interval_90"][0] < 0 < res["credible_interval_90"][1]
+    assert "Cleveland's Second Apron escape" in res["headline_takeaway"]
+
