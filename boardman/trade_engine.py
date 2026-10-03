@@ -141,6 +141,7 @@ def evaluate_trade(
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
     metric_col: str = "war_vorp",
+    friction_lambda: dict[int, float] | None = None,
 ) -> TradeEvaluation:
     """Evaluate legality, apron restrictions, and Net Surplus swings for a proposed trade."""
     if df_players is None:
@@ -168,6 +169,10 @@ def evaluate_trade(
     players_out_a = _resolve_players(send_a, norm_a, df_players)
     players_out_b = _resolve_players(send_b, norm_b, df_players)
 
+    # Check for dead-money contracts
+    has_dead_a = any(bool(p.get("is_dead_money", False)) for p in players_out_a)
+    has_dead_b = any(bool(p.get("is_dead_money", False)) for p in players_out_b)
+
     contracts_out_a = [float(p["salary"]) for p in players_out_a]
     contracts_out_b = [float(p["salary"]) for p in players_out_b]
 
@@ -185,6 +190,7 @@ def evaluate_trade(
         incoming_contracts=contracts_out_b,
         outgoing_cash=cash_a_to_b,
         salary_cap=salary_cap,
+        has_dead_money_outgoing=has_dead_a,
     )
 
     comp_b = check_trade_compliance(
@@ -194,6 +200,7 @@ def evaluate_trade(
         incoming_contracts=contracts_out_a,
         outgoing_cash=0.0,
         salary_cap=salary_cap,
+        has_dead_money_outgoing=has_dead_b,
     )
 
     all_violations = comp_a.violations + comp_b.violations
@@ -222,6 +229,7 @@ def evaluate_trade(
         cost_per_win=cost_per_win,
         salary_cap=salary_cap,
         metric_col=metric_col,
+        friction_lambda=friction_lambda,
     )
 
     delta_b = calculate_roster_delta(
@@ -233,6 +241,7 @@ def evaluate_trade(
         cost_per_win=cost_per_win,
         salary_cap=salary_cap,
         metric_col=metric_col,
+        friction_lambda=friction_lambda,
     )
 
     return TradeEvaluation(

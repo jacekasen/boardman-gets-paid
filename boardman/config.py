@@ -46,15 +46,15 @@ VORP_TO_WAR_MULTIPLIER = 2.70
 REPLACEMENT_LEVEL_BPM = -2.0
 
 # Apron Friction Multipliers lambda(T)
-# Empirically calibrated against the tangible opportunity costs of crossing CBA thresholds:
-# - Bracket 1 (Tax, lambda=0.15): Cash tax burden ($1.50-$2.50/dollar) without operational bans.
+# Hypothesized opportunity-cost breakdown based on statutory 2023 CBA penalties:
+# - Bracket 1 (Tax, lambda=0.15): Marginal cash tax drag ($1.50-$2.50/dollar) without operational bans.
 # - Bracket 2 (1st Apron, lambda=0.35): Hard 100% salary matching + forfeiture of Bi-Annual Exception (~$4.7M asset).
-# - Bracket 3 (2nd Apron, lambda=0.70): Calibrated to equal the empirical sum of:
-#     1. Frozen 1st-round draft pick 7 years out & demoted to pick 30: ~$7.3M expected surplus loss.
-#     2. Forfeiture of Taxpayer Mid-Level Exception: ~$5.4M opportunity cost.
-#     3. Zero salary aggregation liquidity discount: 10%-15% discount on high-dollar contracts (~$7M-$10M).
-#     4. Incremental cash tax penalty ($3.75-$4.75+/dollar).
-#     Total annualized drag on a 2nd Apron contender is ~$25M-$32M, which lambda=0.70 reproduces on CLE ($31.1M).
+# - Bracket 3 (2nd Apron, lambda=0.70): Estimated from an assumed statutory cost breakdown:
+#     1. Frozen 1st-round draft pick 7 years out & demoted to pick 30: ~$7.3M estimated rookie surplus loss.
+#     2. Forfeiture of Taxpayer Mid-Level Exception: ~$5.4M estimated replacement cost.
+#     3. Zero salary aggregation liquidity haircut: 10%-15% illiquidity discount (~$7M-$10M).
+#     4. Repeater luxury tax surcharges ($3.75-$4.75+/dollar).
+#     Total annualized drag on a 2nd Apron contender is ~$25M-$32M, which lambda=0.70 approximates on CLE ($31.1M).
 FRICTION_LAMBDA = {
     0: 0.00,  # Below Luxury Tax: Full flexibility, no tax penalty
     1: 0.15,  # Tax to First Apron: Cash tax penalties, Bi-annual exception preserved
@@ -109,12 +109,16 @@ def normalize_team(team: str) -> str:
     return TEAM_ALIASES.get(cleaned, cleaned)
 
 
-def get_team_bracket(total_payroll: float) -> tuple[int, float]:
+def get_team_bracket(
+    total_payroll: float,
+    friction_lambda: dict[int, float] | None = None,
+) -> tuple[int, float]:
     """Return the apron bracket (0, 1, 2, 3) and friction lambda for a given payroll."""
+    lam_map = friction_lambda if friction_lambda is not None else FRICTION_LAMBDA
     if total_payroll >= SECOND_APRON_2025_26:
-        return 3, FRICTION_LAMBDA[3]
+        return 3, lam_map.get(3, 0.0)
     if total_payroll >= FIRST_APRON_2025_26:
-        return 2, FRICTION_LAMBDA[2]
+        return 2, lam_map.get(2, 0.0)
     if total_payroll >= LUXURY_TAX_2025_26:
-        return 1, FRICTION_LAMBDA[1]
-    return 0, FRICTION_LAMBDA[0]
+        return 1, lam_map.get(1, 0.0)
+    return 0, lam_map.get(0, 0.0)

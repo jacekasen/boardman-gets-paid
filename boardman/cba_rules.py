@@ -89,6 +89,7 @@ def check_trade_compliance(
     salary_cap: float = SALARY_CAP_2025_26,
     first_apron: float = FIRST_APRON_2025_26,
     second_apron: float = SECOND_APRON_2025_26,
+    has_dead_money_outgoing: bool = False,
 ) -> TradeComplianceCheck:
     """Validate all statutory 2023 CBA trade rules for a single team in a transaction.
 
@@ -97,6 +98,7 @@ def check_trade_compliance(
     2. Second Apron salary aggregation prohibition.
     3. Second Apron cash prohibition.
     4. First Apron hard-cap ceiling enforcement.
+    5. Dead money non-tradability restriction.
     """
     salary_out = sum(outgoing_contracts)
     salary_in = sum(incoming_contracts)
@@ -153,7 +155,19 @@ def check_trade_compliance(
                 f"First Apron hard-cap violation: Trade increases payroll from ${pre_payroll:,.0f} to ${post_payroll:,.0f}, piercing the First Apron (${first_apron:,.0f}) while taking back excess salary."
             )
 
-    is_compliant = is_matching_valid and is_aggregation_valid and is_cash_valid and is_hard_cap_respected
+    # 5. Dead Money / Waived Contract Check
+    if has_dead_money_outgoing:
+        violations.append(
+            "Dead money contract violation: Waived/stretched contracts cannot be traded under NBA CBA rules."
+        )
+
+    is_compliant = (
+        is_matching_valid
+        and is_aggregation_valid
+        and is_cash_valid
+        and is_hard_cap_respected
+        and not has_dead_money_outgoing
+    )
 
     return TradeComplianceCheck(
         team=team_code,

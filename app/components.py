@@ -174,10 +174,61 @@ def render_sensitivity_heatmap(df_sens: pd.DataFrame) -> go.Figure:
             text="<b>Cleveland Trade Surplus Sensitivity: λ Multiplier vs. $/WAR</b>",
             font=dict(size=16),
         ),
-        xaxis=dict(title="Apron Friction Scale (0.0x = Pure Linear $/WAR, 1.0x = Calibrated Base)"),
+        xaxis=dict(title="Apron Friction Scale (0.0x = Pure Linear $/WAR, 1.0x = Baseline Hypothesis)"),
         yaxis=dict(title="Open-Market Cost Per Win ($ Millions)"),
         template="plotly_dark",
         height=450,
         margin=dict(l=40, r=40, t=60, b=40),
+    )
+    return fig
+
+
+def render_escape_frontier_chart(df_frontier: pd.DataFrame) -> go.Figure:
+    """Render the break-even talent sacrifice curve comparing Linear $/WAR vs. Apron Friction."""
+    fig = go.Figure()
+
+    # Linear allowable WAR loss curve
+    fig.add_trace(
+        go.Scatter(
+            x=df_frontier["salary_shed_m"],
+            y=df_frontier["max_war_loss_linear"],
+            mode="lines+markers",
+            name="Linear $/WAR Frontier (Max Tolerable Loss)",
+            line=dict(color="#EF4444", width=3, dash="dash"),
+            marker=dict(size=8),
+            hovertemplate="Salary Shed: $%{x}M<br><b>Linear Max WAR Loss: %{y:.2f} WAR</b><extra></extra>",
+        )
+    )
+
+    # Apron allowable WAR loss curve
+    fig.add_trace(
+        go.Scatter(
+            x=df_frontier["salary_shed_m"],
+            y=df_frontier["max_war_loss_apron"],
+            mode="lines+markers",
+            name="Board Man Apron Frontier (4x Expanded Slack)",
+            line=dict(color="#10B981", width=3.5),
+            marker=dict(size=9),
+            fill="tonexty",
+            fillcolor="rgba(16, 185, 129, 0.15)",
+            hovertemplate=(
+                "Salary Shed: $%{x}M<br>"
+                "<b>Apron Max WAR Loss: %{y:.2f} WAR</b><br>"
+                "<i>Trades in this shaded zone are rejected by linear models but accretive under apron math!</i><extra></extra>"
+            ),
+        )
+    )
+
+    fig.update_layout(
+        title=dict(
+            text="<b>Apron Escape Talent Sacrifice Frontier (Cleveland Second Apron Duck)</b>",
+            font=dict(size=16),
+        ),
+        xaxis=dict(title="Salary Shed to Break Below 2nd Apron ($ Millions)"),
+        yaxis=dict(title="Maximum Tolerable On-Court WAR Loss (Break-Even ΔNSV = $0)"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        template="plotly_dark",
+        height=420,
+        margin=dict(l=40, r=40, t=70, b=40),
     )
     return fig

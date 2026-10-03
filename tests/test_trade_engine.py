@@ -37,6 +37,19 @@ def test_illegal_second_apron_trade():
     assert "ILLEGAL CBA TRANSACTION" in trade.summary()
 
 
+def test_dead_money_trade_rejection():
+    """Verify that attempting to trade a dead-money/waived contract is rejected as illegal."""
+    trade = evaluate_trade(
+        team_a="POR",
+        send_a=["Damian Lillard"],  # Portland dead money stretch contract
+        team_b="DET",
+        send_b=["Isaiah Stewart"],
+    )
+
+    assert not trade.is_legal
+    assert any("Dead money contract violation" in v for v in trade.violations)
+
+
 def test_invalid_player_team_rejection():
     """Verify ValueError when attempting to trade a player from the wrong team."""
     with pytest.raises(ValueError, match="is on team"):

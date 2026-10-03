@@ -75,6 +75,7 @@ def compute_apron_friction(
     cap_hit: float,
     team_payroll: float,
     salary_cap: float = SALARY_CAP_2025_26,
+    friction_lambda: dict[int, float] | None = None,
 ) -> tuple[int, float, float]:
     """Calculate the Apron Friction Tax for a contract given the team's payroll and bracket.
 
@@ -82,10 +83,10 @@ def compute_apron_friction(
         tuple of (bracket: int, lambda_tax: float, friction_tax: float)
     """
     if cap_hit <= 0:
-        bracket, lambda_tax = get_team_bracket(team_payroll)
+        bracket, lambda_tax = get_team_bracket(team_payroll, friction_lambda=friction_lambda)
         return bracket, lambda_tax, 0.0
 
-    bracket, lambda_tax = get_team_bracket(team_payroll)
+    bracket, lambda_tax = get_team_bracket(team_payroll, friction_lambda=friction_lambda)
     # Quadratic drag: lambda * cap_hit * (cap_hit / salary_cap)
     friction = lambda_tax * cap_hit * (cap_hit / salary_cap)
     return bracket, lambda_tax, friction
@@ -98,6 +99,7 @@ def calculate_player_valuation(
     salary_cap: float = SALARY_CAP_2025_26,
     metric_col: str = "war_vorp",
     uncle_dennis_cash: float = 0.0,
+    friction_lambda: dict[int, float] | None = None,
 ) -> PlayerValuation:
     """Evaluate an individual player's Fair Production Value, GSV, Friction Tax, and NSV."""
     data = player.model_dump() if isinstance(player, BaseModel) else dict(player)
@@ -117,7 +119,9 @@ def calculate_player_valuation(
     gross_surplus = fair_value - effective_cost
 
     # Apron Friction Tax
-    bracket, lambda_tax, friction_tax = compute_apron_friction(cap_hit, team_payroll, salary_cap=salary_cap)
+    bracket, lambda_tax, friction_tax = compute_apron_friction(
+        cap_hit, team_payroll, salary_cap=salary_cap, friction_lambda=friction_lambda
+    )
 
     # Net Surplus Value
     net_surplus = gross_surplus - friction_tax
@@ -151,6 +155,7 @@ def calculate_roster_valuation(
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
     metric_col: str = "war_vorp",
+    friction_lambda: dict[int, float] | None = None,
 ) -> TeamValuation:
     """Aggregate fair values, gross surplus, friction penalties, and net surplus across a full roster."""
     player_dicts = [p.model_dump() if isinstance(p, BaseModel) else dict(p) for p in players]
@@ -159,7 +164,7 @@ def calculate_roster_valuation(
     if team_payroll is None:
         team_payroll = sum(float(p.get("salary", 0.0)) for p in player_dicts)
 
-    bracket, lambda_tax = get_team_bracket(team_payroll)
+    bracket, lambda_tax = get_team_bracket(team_payroll, friction_lambda=friction_lambda)
 
     valuations: list[PlayerValuation] = []
     total_fv = 0.0
@@ -174,6 +179,7 @@ def calculate_roster_valuation(
             cost_per_win=cost_per_win,
             salary_cap=salary_cap,
             metric_col=metric_col,
+            friction_lambda=friction_lambda,
         )
         valuations.append(val)
         total_fv += val.fair_value
@@ -204,6 +210,7 @@ def calculate_roster_delta(
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
     metric_col: str = "war_vorp",
+    friction_lambda: dict[int, float] | None = None,
 ) -> RosterDelta:
     """Compute franchise-level surplus delta (Delta NSV) resulting from a roster transaction.
 
@@ -218,6 +225,7 @@ def calculate_roster_delta(
         cost_per_win=cost_per_win,
         salary_cap=salary_cap,
         metric_col=metric_col,
+        friction_lambda=friction_lambda,
     )
 
     post_val = calculate_roster_valuation(
@@ -227,6 +235,7 @@ def calculate_roster_delta(
         cost_per_win=cost_per_win,
         salary_cap=salary_cap,
         metric_col=metric_col,
+        friction_lambda=friction_lambda,
     )
 
     delta_nsv = post_val.total_net_surplus - pre_val.total_net_surplus
@@ -258,6 +267,7 @@ def build_league_surplus_board(
     metric_col: str = "war_vorp",
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
+    friction_lambda: dict[int, float] | None = None,
 ) -> pd.DataFrame:
     """Build full league leaderboard of player valuations, Gross Surplus, Friction, and Net Surplus."""
     if df_players is None:
@@ -277,6 +287,7 @@ def build_league_surplus_board(
             cost_per_win=cost_per_win,
             salary_cap=salary_cap,
             metric_col=metric_col,
+            friction_lambda=friction_lambda,
         )
         valuations.append(v.model_dump())
 

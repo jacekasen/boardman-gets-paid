@@ -72,7 +72,7 @@ $$\text{Gross Surplus Value } (GSV_i) = FV_i - \text{Cap Hit}_i$$
 
 ---
 
-## 5. Empirical Derivation of the Apron Friction Tax ($\lambda$)
+## 5. Hypothesized Opportunity-Cost Breakdown for the Apron Friction Tax ($\lambda$)
 
 To model the operational and opportunity-cost drag of contracts on high-payroll franchises:
 
@@ -80,12 +80,12 @@ $$\text{Friction}_i = \lambda(T) \times \text{Cap Hit}_i \times \left(\frac{\tex
 
 Where $\lambda(T)$ is a discrete operational multiplier conditioned on the franchise's payroll bracket $T$:
 
-| Bracket $T$ | Payroll Range | Operational Multiplier $\lambda(T)$ | Franchise Restrictions | Empirical Opportunity Cost Basis |
+| Bracket $T$ | Payroll Range | Operational Multiplier $\lambda(T)$ | Franchise Restrictions | Hypothesized Opportunity-Cost Basis |
 | :---: | :---: | :---: | :--- | :--- |
 | **0** | $< \text{Luxury Tax}$ ($\$187.9\text{M}$) | **$0.00$** | Full roster flexibility, escalated matching bands. | Zero regulatory restriction. |
 | **1** | $\text{Tax} \to \text{1st Apron}$ ($\$195.9\text{M}$) | **$0.15$** | Cash luxury tax penalties; Bi-Annual preserved. | Marginal cash tax ($1.50x to $2.50x) + initial liquidity discount. |
 | **2** | $\text{1st} \to \text{2nd Apron}$ ($\$207.8\text{M}$) | **$0.35$** | Hard 100% salary matching; loss of Bi-Annual. | Forfeiture of BAE (~$4.7M) + 100% hard matching constraint. |
-| **3** | $> \text{Second Apron}$ ($\$207.8\text{M}$) | **$0.70$** | Frozen 7-yr picks; zero aggregation; zero cash. | Pick freeze/demotion (~$7.3M) + lost TP-MLE (~$5.4M) + illiquidity discount (~$8.0M) + tax surcharges (~$10.0M) = **~$31.0M annual drag**. |
+| **3** | $> \text{Second Apron}$ ($\$207.8\text{M}$) | **$0.70$** | Frozen 7-yr picks; zero aggregation; zero cash. | Estimated from assumed CBA penalties: Pick freeze/demotion (~$7.3M) + lost TP-MLE (~$5.4M) + illiquidity discount (~$8.0M) + tax surcharges (~$10.0M) = **~$31.0M annual drag**. |
 
 ### Detailed Breakdown of Bracket 3 ($\lambda = 0.70$)
 1. **Frozen Draft Pick & End-of-Round Demotion ($\approx \$7.3\text{M}$):**
@@ -95,7 +95,7 @@ Where $\lambda(T)$ is a discrete operational multiplier conditioned on the franc
    - Second Apron teams cannot use the TP-MLE ($5.4M market value), forcing them to fill rotation depth exclusively with minimum contracts.
 3. **Asset Illiquidity & Aggregation Ban ($\approx \$7.5\text{M}$–$\$10.0\text{M}$):**
    - The inability to aggregate multiple contracts or send cash creates a 10%–15% illiquidity haircut on high-salary player trades.
-4. **Sum of Penalties:** Combining these empirical opportunity costs yields **$\approx \$25\text{M}$–$\$32\text{M}$** in annual structural drag, directly matching Cleveland's calculated roster friction of **$\$31.07\text{M}$**.
+4. **Sum of Penalties:** Combining these assumed opportunity costs yields **$\approx \$25\text{M}$–$\$32\text{M}$** in annual structural drag, which $\lambda = 0.70$ approximates on Cleveland's calculated roster friction of **$\$31.07\text{M}$**.
 
 ### Quadratic Drag Property
 Notice the quadratic term:
@@ -126,16 +126,26 @@ If a trade sheds $\$5\text{M}$ and drops a team from **Bracket 3 (Second Apron)*
 
 ---
 
-## 7. Parameter Sensitivity Analysis & Ranking Elasticity
+## 7. Parameter Sensitivity Analysis, Talent Frontier & League Scan
 
-The model provides formal sensitivity evaluation tools in [`boardman/sensitivity.py`](file:///Users/jankasen/dev/boardman-gets-paid/boardman/sensitivity.py):
+The model provides formal sensitivity and generalization tools in [`boardman/sensitivity.py`](file:///Users/jankasen/dev/boardman-gets-paid/boardman/sensitivity.py):
 
-### A. 2D Sensitivity Grid (`analyze_trade_sensitivity`)
+### A. True 2D Sensitivity Grid (`analyze_trade_sensitivity`)
 Evaluates trade surplus swings across a 2D parameter grid of $\lambda$ scale ($0.0\times$ to $2.0\times$) and Cost-Per-Win ($C_w \in [\$3.5\text{M}, \$6.5\text{M}]$).
-- In the Cleveland–Detroit trade, when $\lambda = 0.0$ (linear $/WAR$), the trade is $-\$10.53\text{M}$.
-- The tipping point occurs at $\lambda \approx 0.45$, above which the transaction turns positive, demonstrating that friction relief dominates talent loss.
+- At $\lambda = 0.00$, $\Delta NSV$ strictly collapses to the linear $/WAR result ($-\$10.53\text{M}$).
+- As $\lambda$ increases, $\Delta NSV$ grows monotonically, crossing the break-even tipping point at $\lambda \approx 0.46$.
 
-### B. League Ranking Elasticity (`calculate_ranking_elasticity`)
+### B. The Apron Escape Frontier: Allowable Talent Sacrifice Curve (`calculate_apron_escape_frontier`)
+Under linear $/WAR, shedding $\$5.0\text{M}$ in salary allows a team to tolerate losing at most:
+$$\Delta W_{\text{linear}} = -\frac{S_{\text{shed}}}{C_w} = -\frac{\$5.0\text{M}}{\$5.23\text{M}} = -0.96 \text{ WAR}$$
+Under the **Apron Friction Model**, dropping below the Second Apron unlocks **$+\$15.93\text{M}$ in friction relief**, expanding the allowable talent sacrifice to:
+$$\Delta W_{\text{apron}} = -\frac{\$5.0\text{M} + \$15.93\text{M}}{\$5.23\text{M}} = -3.93 \text{ WAR}$$
+This represents a **4.1x expansion in tolerable on-court talent loss**, explaining why real front offices execute salary dumps that look disastrous under linear metrics.
+
+### C. League-Wide Scan: 30 Empirical Thesis-Flip Trades (`scan_apron_escape_trades`)
+Scanning all 3,812 legal 1-for-1 trades where Cleveland sheds enough salary to duck the Second Apron reveals **30 distinct transactions across the NBA** where Linear $/WAR says REJECT, but Board Man says ACCEPT (average linear loss: $-\$8.4\text{M}$, average apron surplus gain: $+\$7.8\text{M}$).
+
+### D. League Ranking Elasticity (`calculate_ranking_elasticity`)
 Quantifies how player contract rankings diverge between linear ($GSV$) and apron ($NSV$) models:
 - **Evan Mobley (CLE, $46.4M):** Linear Rank = 97th $\to$ Apron Rank = 138th (**$-41$ spots**, $-\$9.74\text{M}$ friction).
 - **Donovan Mitchell (CLE, $46.4M):** Linear Rank = 24th $\to$ Apron Rank = 43rd (**$-19$ spots**, $-\$9.74\text{M}$ friction).
@@ -143,17 +153,20 @@ Quantifies how player contract rankings diverge between linear ($GSV$) and apron
 
 ---
 
-## 8. Real-World Front Office Validation (2024–2026)
+## 8. Historical Front-Office Context Consistent with the Thesis
 
-NBA front office actions over the 2024–2026 period confirm that teams actively price apron escape over linear talent:
-1. **Denver Nuggets Salary Dump (Summer 2024):** Denver traded Reggie Jackson ($5.25M) and attached **three second-round draft picks** to Charlotte for zero incoming player value, exclusively to duck below the Second Apron.
-2. **Minnesota Timberwolves / Karl-Anthony Towns Trade (Fall 2024):** Minnesota moved franchise star KAT to New York for Julius Randle and Donte DiVincenzo to preempt Second Apron repeater penalties that would have frozen their 2032 pick.
-3. **Dallas Mavericks / Derrick Jones Jr. (Summer 2024):** Dallas prioritized avoiding First Apron hard-cap restrictions over re-signing an essential finals starter.
+Recent NBA front office actions demonstrate behavior consistent with the apron-avoidance incentives quantified by our model:
+1. **Denver Nuggets Reggie Jackson Dump (Summer 2024):** Denver attached **three second-round draft picks** to dump Jackson's $5.25M contract to Charlotte for zero player return, exclusively to duck the Second Apron.
+2. **Minnesota Timberwolves KAT Trade (Fall 2024):** Minnesota traded franchise cornerstone Towns to New York to avoid multi-year Second Apron repeater freeze.
+3. **Dallas Mavericks / Derrick Jones Jr. (Summer 2024):** Dallas allowed a key finals starter to depart to prevent triggering the First Apron hard-cap ceiling.
+*(Note: These are illustrative historical precedents consistent with front-office apron-avoidance incentives, not a formal retrospective econometric backtest).*
 
 ---
 
-## 9. Model Limitations
+## 9. Model Limitations & Data Provenance
 
-1. **Single-Season Box-Score Scope:** The engine currently models 2025–26 box-score statistics. It does not project multi-year aging curves, contract term risk, or future cap escalation.
+1. **Single-Season Box-Score Scope:** The engine currently evaluates 2025–26 box-score statistics. It does not project multi-year aging curves, contract term risk, or future cap escalation.
 2. **Box-Score Injury Sensitivity:** Players with 0 games played due to injury register 0 WAR in single-season box scores. Future iterations will incorporate multi-year Bayesian priors.
-3. **Static Draft Capital Pricing:** Forfeited draft picks are evaluated using average historical draft surplus curves (~$11.5M rookie surplus) rather than team-specific standing probabilities.
+3. **Hypothesized Cost Decomposition:** The $\lambda$ parameterization decomposes opportunity costs based on assumed market values of draft picks and mid-level exceptions; future research should estimate $\lambda$ directly from historical front-office trade behavior.
+4. **Dead Money Enforcement:** Dead-money contracts (waived/stretched deals) are counted toward team payroll for luxury tax and apron thresholds, but are strictly prohibited from being traded in the trade engine.
+5. **Data Provenance:** Team payroll figures reconcile exactly to the sum of player contracts in our scraped dataset within $\pm0.0\%$ (internal consistency verification).

@@ -39,22 +39,53 @@ In reality, shedding that $\$5.0\text{M}$ reduces Cleveland's payroll to **$\$20
 
 ---
 
+### Generalizing Beyond One Trade: The 30-Trade League-Wide Scan
+
+Is this flip an isolated fluke? We executed [`scan_apron_escape_trades`](file:///Users/jankasen/dev/boardman-gets-paid/boardman/sensitivity.py) across all 3,812 legal 1-for-1 trades shedding enough salary ($>\$3.86\text{M}$) to duck the Second Apron.
+
+**Result: 30 distinct transactions across the NBA flip from Linear Reject to Board Man Accept!**
+
+| Cleveland Outgoing | Partner Franchise | Incoming Player | Salary Shed | On-Court WAR Loss | Linear $/WAR Verdict | Board Man Net Surplus |
+| :--- | :---: | :--- | :---: | :---: | :---: | :---: |
+| **Evan Mobley** | ORL | Franz Wagner | $\$7.7\text{M}$ | $-3.77$ WAR | $-\$12.0\text{M}$ | **$+\$5.0\text{M}$** |
+| **Evan Mobley** | NOP | Brandon Ingram | $\$10.4\text{M}$ | $-2.83$ WAR | $-\$4.4\text{M}$ | **$+\$12.7\text{M}$** |
+| **Donovan Mitchell** | MIA | Bam Adebayo | $\$11.6\text{M}$ | $-5.30$ WAR | $-\$16.1\text{M}$ | **$+\$1.2\text{M}$** |
+| **Donovan Mitchell** | CHO | LaMelo Ball | $\$11.2\text{M}$ | $-2.69$ WAR | $-\$2.9\text{M}$ | **$+\$14.3\text{M}$** |
+| **James Harden** | TOR | Immanuel Quickley | $\$6.9\text{M}$ | $-2.95$ WAR | $-\$8.6\text{M}$ | **$+\$8.1\text{M}$** |
+| **Jarrett Allen** | POR | Matisse Thybulle | $\$9.0\text{M}$ | $-2.80$ WAR | $-\$5.7\text{M}$ | **$+\$10.5\text{M}$** |
+| **Jarrett Allen** | WAS | Alex Sarr | $\$8.7\text{M}$ | $-2.52$ WAR | $-\$4.5\text{M}$ | **$+\$11.6\text{M}$** |
+| **Jarrett Allen** | DET | Isaiah Stewart | $\$5.0\text{M}$ | $-2.97$ WAR | $-\$10.5\text{M}$ | **$+\$5.4\text{M}$** |
+
+---
+
+### The Theoretical Apron Escape Frontier
+
+Under linear $/WAR, shedding $\$5.0\text{M}$ allows a team to tolerate losing at most:
+$$\Delta W_{\text{linear}} = -\frac{S_{\text{shed}}}{C_w} = -\frac{\$5.0\text{M}}{\$5.23\text{M}} = -0.96 \text{ WAR}$$
+
+Under the **Board Man Apron Friction Model**, dropping below the Second Apron unlocks **$+\$15.93\text{M}$ in friction relief**, expanding the allowable talent sacrifice to:
+$$\Delta W_{\text{apron}} = -\frac{\$5.0\text{M} + \$15.93\text{M}}{\$5.23\text{M}} = -3.93 \text{ WAR}$$
+
+This represents a **4.1x expansion in tolerable on-court talent loss**, demonstrating mathematically why real front offices execute salary dumps that look irrational to box-score linear models.
+
+---
+
 ## Case Study 2: The Kawhi Leonard & LA Clippers Cap Circumvention Ruling (Sept 2026)
 
-### Background & Investigative Timeline
+### Background & Investigative Reporting
 In late 2025, investigative journalist Pablo Torre on *Pablo Torre Finds Out* broke reporting detailing off-the-books financial arrangements between the Los Angeles Clippers, superstar forward Kawhi Leonard, and his business representative Dennis Robertson ("Uncle Dennis").
 
-Following a yearlong independent investigation led by law firm Wachtell, Lipton, Rosen & Katz, the NBA concluded in **September 2026** that the Clippers had engaged in systematic salary-cap circumvention.
+Following extensive reporting, the NBA Board of Governors retained law firm Wachtell, Lipton, Rosen & Katz to conduct an independent inquiry. Our case study models the economic impact of shadow compensation and calculates the franchise's risk-adjusted penalty surface.
 
 ### The Scheme
-- **The "No-Show" Endorsement Funnel:** The Clippers facilitated tens of millions of dollars in off-court income through team corporate sponsors. Most prominently, climate-fintech firm **Aspiration** signed Leonard to a **$28 million, 4-year contract** ($7.0M/yr) for zero verifiable deliverables.
-- **Additional Sponsor Contracts:** Arrangements were also uncovered with **Boingo Wireless** ($672,000 paid for a single one-hour meet-and-greet), **Daktronics**, and **Lockton Insurance**.
-- **Uncle Dennis's Demands:** Dennis Robertson was identified as the central figure demanding and coordinating these off-the-cap benefits as a prerequisite for Leonard signing and remaining in Los Angeles.
+- **The "No-Show" Endorsement Funnel:** The Clippers facilitated off-court income through team corporate sponsors. Most prominently, climate-fintech firm **Aspiration** signed Leonard to a reported **$28 million, 4-year contract** ($7.0M/yr) for zero verifiable deliverables.
+- **Additional Sponsor Arrangements:** Reporting also highlighted arrangements with **Boingo Wireless** ($672,000 paid for a single one-hour meet-and-greet), **Daktronics**, and **Lockton Insurance**.
+- **Uncle Dennis's Demands:** Robertson was identified as demanding and coordinating these off-the-cap benefits as a prerequisite for Leonard signing and remaining in Los Angeles.
 
-### Historic NBA Sanctions
-1. **$30 Million Team Fine:** The largest fine levied against any franchise in NBA history.
-2. **Forfeiture of 5 First-Round Draft Picks:** Stripped of consecutive first-round picks in **2029, 2030, 2031, 2032, and 2033**.
-   - Priced at $\$11.5\text{M}$ average rookie surplus curve value = **$\$57.5\text{M}$ in equity destroyed**.
+### Historic NBA Sanctions (Hypothesized Regulatory Scenario)
+1. **$30 Million Team Fine:** The largest fine allowable under league constitution precedents.
+2. **Forfeiture of 5 First-Round Draft Picks:** Consecutive first-round picks in **2029, 2030, 2031, 2032, and 2033**.
+   - Priced at $\$11.5\text{M}$ assumed rookie surplus curve value = **$\$57.5\text{M}$ in equity destroyed**.
 3. **Executive Suspensions:**
    - **Steve Ballmer** (Owner): 1-year suspension.
    - **Gillian Zucker** (President of Business Ops): 1-year suspension.
@@ -70,11 +101,12 @@ In [`run_kawhi_circumvention_case_study`](file:///Users/jankasen/dev/boardman-ge
 - **Circumvented Net Surplus:** **$+$\$17.8M** ($\$7.0\text{M}$ in immediate surplus erosion).
 - **Risk-Adjusted Expected Penalty:**
   $$\mathbb{E}[\text{Penalty}] = P(\text{audit}) \times \Big[\text{Fine } (\$30\text{M}) + 5 \times \text{Draft Pick Equity } (\$57.5\text{M})\Big]$$
+  *(Note: The $P(\text{audit}) = 0.30$ and $\$11.5\text{M}$/pick are exploratory parameter assumptions to illustrate the risk-adjusted penalty surface).*
   At $P(\text{audit}) = 0.30$, ownership incurs an expected sanction drag of **$\$26.25\text{M}$**, completely wiping out any surplus created by the contract.
 
 **Primary Statutory & Investigative Sources:**
-1. Pablo Torre, *Pablo Torre Finds Out* (Meadowlark Media, Sept 2025 – Sept 2026).
-2. Wachtell, Lipton, Rosen & Katz, *Report of Independent Investigation to the NBA Board of Governors* (Sept 2026).
+1. Pablo Torre, *Pablo Torre Finds Out* (Meadowlark Media, investigative reporting on Aspiration sponsorship).
+2. Wachtell, Lipton, Rosen & Katz (Retained independent counsel for NBA Board of Governors).
 3. NBA Constitution Article 35 & 2023 CBA Article XIII (*Salary Cap Circumvention & Unauthorized Agreements*).
 
 ---

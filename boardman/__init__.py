@@ -8,7 +8,9 @@ from boardman.case_studies import (
 )
 from boardman.sensitivity import (
     analyze_trade_sensitivity,
+    calculate_apron_escape_frontier,
     calculate_ranking_elasticity,
+    scan_apron_escape_trades,
 )
 from boardman.trade_engine import TradeEvaluation, evaluate_trade
 from boardman.valuation import (
@@ -30,6 +32,8 @@ __all__ = [
     "calculate_roster_delta",
     "build_league_surplus_board",
     "analyze_trade_sensitivity",
+    "calculate_apron_escape_frontier",
+    "scan_apron_escape_trades",
     "calculate_ranking_elasticity",
     "run_cleveland_detroit_apron_escape",
     "run_cleveland_second_apron_trap",

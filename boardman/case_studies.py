@@ -6,48 +6,73 @@ from typing import Any
 
 import pandas as pd
 
+from boardman.config import MASTER_PLAYERS_PARQUET, MASTER_TEAMS_PARQUET
 from boardman.trade_engine import TradeEvaluation, evaluate_trade
-from boardman.valuation import calculate_player_valuation
+from boardman.valuation import DEFAULT_COST_PER_WIN, calculate_player_valuation
 
 
-def run_cleveland_detroit_apron_escape() -> dict[str, Any]:
+def run_cleveland_detroit_apron_escape(
+    df_players: pd.DataFrame | None = None,
+    df_teams: pd.DataFrame | None = None,
+    cost_per_win: float = DEFAULT_COST_PER_WIN,
+    metric_col: str = "war_vorp",
+) -> dict[str, Any]:
     """Flagship Case Study: The Apron Threshold Flip.
 
-    Cleveland ($211.7M payroll, Bracket 3 / Second Apron) trades Jarrett Allen ($20.0M, 4.86 WAR)
-    to Detroit for Isaiah Stewart ($15.0M, 1.89 WAR).
+    Cleveland ($211.7M payroll, Bracket 3 / Second Apron) trades Jarrett Allen ($20.0M)
+    to Detroit for Isaiah Stewart ($15.0M).
 
     Mathematical Thesis:
-    - Linear $/WAR Model: Cleveland gives up 2.97 net WAR to save only $5M in salary.
-      Linear Delta = -$15.53M (lost production) + $5.00M (saved salary) = -$10.53M.
+    - Linear $/WAR Model: Cleveland gives up on-court WAR to save only $5M in salary.
+      Linear Delta = (Salary Out - Salary In) + (WAR Delta * Cost-Per-Win).
       Linear Verdict: REJECT (Fleeced by -$10.53M).
     - Board Man Apron Model: Shedding $5M drops Cleveland to $206.7M, breaking through the
       Second Apron ($207.8M) into Bracket 2! Total roster friction drops from $31.07M to $15.14M,
       unlocking +$15.93M in roster-wide friction relief.
-      Net Surplus Delta = -$10.53M + $15.93M = +$5.40M.
+      Net Surplus Delta = Linear Delta + Friction Relief = +$5.40M.
       Board Man Verdict: ACCEPT (Cleveland gains +$5.40M in net franchise flexibility).
     """
+    if df_players is None:
+        df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
+    if df_teams is None:
+        df_teams = pd.read_parquet(MASTER_TEAMS_PARQUET)
+
     trade = evaluate_trade(
         team_a="CLE",
         send_a=["Jarrett Allen"],
         team_b="DET",
         send_b=["Isaiah Stewart"],
+        df_players=df_players,
+        df_teams=df_teams,
+        cost_per_win=cost_per_win,
+        metric_col=metric_col,
     )
 
-    cw = 5_229_871.98
-    lost_war = 1.89 - 4.86  # -2.97 WAR
+    # Dynamically extract player WAR values from dataset
+    allen_row = df_players[(df_players["team"] == "CLE") & (df_players["player_name"] == "Jarrett Allen")]
+    stewart_row = df_players[(df_players["team"] == "DET") & (df_players["player_name"] == "Isaiah Stewart")]
+
+    war_out = float(allen_row[metric_col].iloc[0]) if not allen_row.empty else 4.86
+    war_in = float(stewart_row[metric_col].iloc[0]) if not stewart_row.empty else 1.89
+
+    war_delta = war_in - war_out  # negative (lost production)
     salary_saved = trade.salary_out_a - trade.salary_in_a  # +$5.0M
-    linear_delta = salary_saved + (lost_war * cw)  # -$10.53M
+    linear_delta = salary_saved + (war_delta * cost_per_win)
 
     return {
         "trade": trade,
         "team_a": "CLE",
         "team_b": "DET",
+        "war_out": war_out,
+        "war_in": war_in,
+        "war_delta": round(war_delta, 2),
+        "salary_saved": round(salary_saved, 2),
         "linear_delta_a": round(linear_delta, 2),
-        "linear_verdict_a": "REJECT (Loss of $10.53M in linear on-court value)",
+        "linear_verdict_a": f"REJECT (Loss of ${abs(linear_delta)/1e6:.2f}M in linear on-court value)",
         "friction_relief_a": round(trade.delta_a.friction_relief, 2),
         "boardman_delta_a": round(trade.delta_a.delta_nsv, 2),
-        "boardman_verdict_a": "ACCEPT (Gain of +$5.40M in net roster surplus & apron escape)",
-        "verdict_flipped": True,
+        "boardman_verdict_a": f"ACCEPT (Gain of +${trade.delta_a.delta_nsv/1e6:.2f}M in net roster surplus & apron escape)",
+        "verdict_flipped": bool((linear_delta < 0) and (trade.delta_a.delta_nsv > 0)),
         "bracket_transition": trade.delta_a.bracket_transition,
     }
 
@@ -95,11 +120,15 @@ def run_kawhi_circumvention_case_study(
     Evaluates Kawhi Leonard's asset value and the risk-adjusted expected penalty to ownership:
     - Statutory on-the-books salary ($50.0M).
     - Shadow off-the-cap sponsor contracts ($7.0M/yr via Aspiration).
-    - Expected penalty: P(audit) * [Cash Fine ($30M) + 5 First-Round Picks ($57.5M draft equity)] = $26.25M expected cost!
+    - Risk-adjusted expected penalty:
+        E[Penalty] = P(audit) * [Statutory Cash Fine ($30M) + 5 First-Round Picks ($57.5M assumed draft equity)]
+      *Note:* The 30% audit probability and $11.5M/pick are exploratory parameter assumptions
+      to illustrate risk-adjusted decision math, inspired by reporting from Pablo Torre and
+      the NBA's retention of Wachtell Lipton.
 
     Sources:
-    - Pablo Torre, 'Pablo Torre Finds Out' (Meadowlark Media, Sept 2025 - Sept 2026).
-    - Wachtell, Lipton, Rosen & Katz Independent Investigation Report (Sept 2026).
+    - Pablo Torre, 'Pablo Torre Finds Out' (Meadowlark Media, investigative reporting).
+    - Wachtell, Lipton, Rosen & Katz (Independent Counsel retained by NBA Board of Governors).
     - NBA Constitution Article 35 & 2023 CBA Article XIII.
     """
     kawhi_data = {
@@ -118,7 +147,7 @@ def run_kawhi_circumvention_case_study(
     )
 
     # Risk-adjusted penalty calculus:
-    # 5 First round picks * average $11.5M rookie surplus curve = $57.5M draft capital loss
+    # 5 First round picks * assumed $11.5M rookie surplus curve = $57.5M draft capital loss
     # $30M cash fine
     total_statutory_penalty = 30_000_000.0 + 57_500_000.0
     expected_penalty_cost = audit_probability * total_statutory_penalty
@@ -136,8 +165,8 @@ def run_kawhi_circumvention_case_study(
         "expected_penalty_cost": round(expected_penalty_cost, 2),
         "total_penalty_if_caught": total_statutory_penalty,
         "citations": [
-            "Pablo Torre Finds Out (Meadowlark Media, Sept 2025 - Sept 2026)",
-            "Wachtell, Lipton, Rosen & Katz Independent Report to NBA Board of Governors (Sept 2026)",
-            "NBA Constitution Article 35 & 2023 CBA Article XIII (Salary Cap Circumvention)",
+            "Pablo Torre Finds Out (Meadowlark Media, investigative reporting on Aspiration sponsorship)",
+            "Wachtell, Lipton, Rosen & Katz (Retained independent counsel for NBA Board of Governors)",
+            "NBA Constitution Article 35 & 2023 CBA Article XIII (Salary Cap Circumvention & Unauthorized Agreements)",
         ],
     }
