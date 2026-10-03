@@ -12,12 +12,15 @@ from pydantic import BaseModel
 
 from boardman.cba_rules import check_trade_compliance
 from boardman.config import (
+    CANONICAL_TEAM_NAMES,
+    DEFAULT_METRIC,
     DEFAULT_SEASON,
     FRICTION_LAMBDA,
     MASTER_PLAYERS_PARQUET,
     MASTER_TEAMS_PARQUET,
     SALARY_CAP_2025_26,
     SECOND_APRON_2025_26,
+    SECOND_APRON_COST_COMPONENTS,
 )
 from boardman.trade_engine import TradeEvaluation, evaluate_trade
 from boardman.valuation import (
@@ -38,13 +41,13 @@ class SensitivityPoint(BaseModel):
 def analyze_trade_sensitivity(
     team_a: str = "CLE",
     send_a: list[str] | None = None,
-    team_b: str = "DET",
+    team_b: str = "DAL",
     send_b: list[str] | None = None,
     lambda_scales: list[float] | None = None,
     cost_per_win_range: list[float] | None = None,
     df_players: pd.DataFrame | None = None,
     df_teams: pd.DataFrame | None = None,
-    metric_col: str = "war_vorp",
+    metric_col: str = DEFAULT_METRIC,
 ) -> pd.DataFrame:
     """Evaluate how a trade's surplus delta swings across a 2D parameter grid of lambda and Cost-Per-Win.
 
@@ -52,9 +55,9 @@ def analyze_trade_sensitivity(
     the model mathematically collapses to pure linear $/WAR (friction = 0).
     """
     if send_a is None:
-        send_a = ["Jarrett Allen"]
+        send_a = ["Max Strus"]
     if send_b is None:
-        send_b = ["Isaiah Stewart"]
+        send_b = ["Caleb Martin"]
 
     if lambda_scales is None:
         lambda_scales = [0.0, 0.25, 0.50, 0.75, 1.0, 1.25, 1.5, 2.0]
@@ -125,10 +128,17 @@ def scan_apron_escape_trades(
     df_players: pd.DataFrame | None = None,
     df_teams: pd.DataFrame | None = None,
     cost_per_win: float = DEFAULT_COST_PER_WIN,
-    metric_col: str = "war_vorp",
+    metric_col: str = "war_projected",
+    protect_top_n: int = 3,
+    protected_players: list[str] | None = None,
 ) -> pd.DataFrame:
     """Scan all legal 1-for-1 trades where an apron team sheds enough salary to drop below an apron threshold,
     identifying trades where the verdict flips from Linear Reject to Board Man Accept.
+
+    Defaults to the multi-season ``war_projected`` prior so a single injured or down season does not
+    make a cornerstone look expendable. The team's top ``protect_top_n`` players by ``war_projected``
+    (plus any ``protected_players``) are excluded from the outgoing pool: an escape menu that recommends
+    trading the franchise's best players is not a credible front-office recommendation.
     """
     if df_players is None:
         df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
@@ -146,11 +156,14 @@ def scan_apron_escape_trades(
     if apron_excess <= 0:
         return pd.DataFrame()
 
-    # Get non-dead-money players on the target team with salary > excess
-    target_players = df_players[
-        (df_players["team"] == team)
-        & (~df_players["is_dead_money"])
-        & (df_players["salary"] > apron_excess)
+    team_roster = df_players[(df_players["team"] == team) & (~df_players["is_dead_money"])]
+    protected = set(protected_players or [])
+    if protect_top_n > 0:
+        protected |= set(team_roster.nlargest(protect_top_n, "war_projected")["player_name"])
+
+    # Get non-dead-money, non-protected players on the target team with salary > excess
+    target_players = team_roster[
+        (team_roster["salary"] > apron_excess) & (~team_roster["player_name"].isin(protected))
     ]
 
     other_teams = [t for t in df_teams["team"].unique() if t != team]
@@ -327,34 +340,104 @@ def calculate_ranking_elasticity(
     return df_active.sort_values("friction_tax", ascending=False).reset_index(drop=True)
 
 
+def calculate_break_even_lambda_3(
+    team_a: str = "CLE",
+    send_a: list[str] | None = None,
+    team_b: str = "DAL",
+    send_b: list[str] | None = None,
+    df_players: pd.DataFrame | None = None,
+    df_teams: pd.DataFrame | None = None,
+    cost_per_win: float = DEFAULT_COST_PER_WIN,
+    metric_col: str = DEFAULT_METRIC,
+) -> dict[str, Any]:
+    """Solve for the Second Apron lambda_3 at which team_a's Delta NSV is exactly zero, holding the
+    other brackets (in particular lambda_2) at their baseline values.
+
+    This is the break-even comparable to the Denver revealed-preference bound and the Monte Carlo,
+    both of which also hold lambda_2 fixed. (The 2D sensitivity grid scales every bracket together,
+    so its tipping point is a different quantity.)
+
+    Delta NSV is linear in lambda_3 for a Bracket 3 -> Bracket 2 escape, so two engine evaluations
+    pin down the root exactly.
+
+    Also returns the model-agnostic framing: the minimum annual friction relief that escaping the
+    apron must be worth for the trade to break even (= minus the linear $/WAR verdict).
+    """
+    if send_a is None:
+        send_a = ["Max Strus"]
+    if send_b is None:
+        send_b = ["Caleb Martin"]
+
+    def run(friction_lambda: dict[int, float]) -> TradeEvaluation:
+        return evaluate_trade(
+            team_a=team_a,
+            send_a=send_a,
+            team_b=team_b,
+            send_b=send_b,
+            df_players=df_players,
+            df_teams=df_teams,
+            cost_per_win=cost_per_win,
+            metric_col=metric_col,
+            friction_lambda=friction_lambda,
+        )
+
+    lo, hi = 0.0, FRICTION_LAMBDA[3]
+    t_lo = run({**FRICTION_LAMBDA, 3: lo})
+    t_hi = run(FRICTION_LAMBDA)
+    d_lo, d_hi = t_lo.delta_a.delta_nsv, t_hi.delta_a.delta_nsv
+    slope = (d_hi - d_lo) / (hi - lo)
+    break_even = lo - d_lo / slope if slope > 0 else float("nan")
+
+    # Linear $/WAR verdict: the same trade with every bracket's friction set to zero
+    linear_delta = run({k: 0.0 for k in FRICTION_LAMBDA}).delta_a.delta_nsv
+
+    return {
+        "team_a": team_a,
+        "send_a": send_a,
+        "team_b": team_b,
+        "send_b": send_b,
+        "lambda_2_held_fixed": FRICTION_LAMBDA[2],
+        "break_even_lambda_3": round(break_even, 3),
+        "baseline_lambda_3": FRICTION_LAMBDA[3],
+        "baseline_delta_nsv": round(d_hi, 2),
+        "baseline_friction_relief": round(t_hi.delta_a.friction_relief, 2),
+        "linear_delta": round(linear_delta, 2),
+        "required_friction_relief": round(max(0.0, -linear_delta), 2),
+        "delta_nsv_per_unit_lambda_3": round(slope, 2),
+    }
+
+
 def calculate_headline_uncertainty(
     team_a: str = "CLE",
     send_a: list[str] | None = None,
-    team_b: str = "DET",
+    team_b: str = "DAL",
     send_b: list[str] | None = None,
     n_trials: int = 10000,
     seed: int = 42,
-    lambda_3_min: float = 0.40,
-    lambda_3_max: float = 0.85,
+    lambda_3_min: float | None = None,
+    lambda_3_max: float | None = None,
+    cost_components: list[dict[str, Any]] | None = None,
     war_sigma: float = 0.35,
     df_players: pd.DataFrame | None = None,
     df_teams: pd.DataFrame | None = None,
     cost_per_win: float = DEFAULT_COST_PER_WIN,
-    metric_col: str = "war_vorp",
+    metric_col: str = DEFAULT_METRIC,
 ) -> dict[str, Any]:
-    """Execute a Monte Carlo simulation quantifying parameter and measurement uncertainty for the headline Cleveland escape.
+    """Execute a Monte Carlo simulation quantifying parameter and measurement uncertainty for an apron escape.
 
     Simulates joint uncertainty across:
-    1. Second Apron friction penalty elasticity: lambda_3 ~ Uniform(lambda_3_min, lambda_3_max)
-    2. Player performance measurement noise: Delta_WAR_noise ~ Normal(0, war_sigma)
+    1. Second Apron friction penalty elasticity: lambda_3 sampled across the four statutory 2023 CBA
+       cost components (Article VII frozen pick, TP-MLE forfeiture, trade illiquidity, repeater surcharge)
+       divided by the pre-trade roster base B_pre, spanning ~[0.53, 0.82] with mean ~0.66 (or Uniform[min, max] if specified).
+    2. Player performance measurement noise: Delta_WAR_noise ~ Normal(0, war_sigma).
 
-    Returns probability that the apron escape remains value-accretive (Delta NSV > 0) along with
-    distributional summary statistics and 90% credible intervals.
+    The returned interval is a 90% scenario interval (5th-95th percentile of simulated outcomes across
+    the sourced statutory cost components), not a Bayesian credible interval.
     """
     if send_a is None:
-        send_a = ["Jarrett Allen"]
+        send_a = ["Max Strus"]
     if send_b is None:
-        send_b = ["Isaiah Stewart"]
+        send_b = ["Caleb Martin"]
 
     if df_players is None:
         df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
@@ -382,7 +465,23 @@ def calculate_headline_uncertainty(
 
     # Run Monte Carlo trials
     rng = np.random.default_rng(seed)
-    lambda_3_samples = rng.uniform(lambda_3_min, lambda_3_max, size=n_trials)
+
+    if lambda_3_min is not None and lambda_3_max is not None:
+        lambda_3_samples = rng.uniform(lambda_3_min, lambda_3_max, size=n_trials)
+        source_desc = f"Uniform[{lambda_3_min:.2f}, {lambda_3_max:.2f}]"
+    else:
+        active_components = cost_components if cost_components is not None else SECOND_APRON_COST_COMPONENTS
+        totals = np.zeros(n_trials)
+        for comp in active_components:
+            totals += rng.uniform(comp["low_usd"], comp["high_usd"], size=n_trials)
+        lambda_3_samples = totals / base_pre
+        low_tot = sum(c["low_usd"] for c in active_components)
+        high_tot = sum(c["high_usd"] for c in active_components)
+        source_desc = (
+            f"4 Sourced Statutory Cost Components (${low_tot/1e6:.1f}M–${high_tot/1e6:.1f}M/yr; "
+            f"implied lambda_3 in [{low_tot/base_pre:.3f}, {high_tot/base_pre:.3f}])"
+        )
+
     war_noise_samples = rng.normal(0.0, war_sigma, size=n_trials)
 
     sim_war_deltas = war_delta + war_noise_samples
@@ -393,6 +492,7 @@ def calculate_headline_uncertainty(
     mean_nsv = float(np.mean(sim_delta_nsv))
     median_nsv = float(np.median(sim_delta_nsv))
     ci_90 = np.percentile(sim_delta_nsv, [5, 95])
+    break_even = (lambda_2 * base_post - sal_saved - war_delta * cost_per_win) / base_pre
 
     return {
         "team_a": team_a,
@@ -400,17 +500,66 @@ def calculate_headline_uncertainty(
         "team_b": team_b,
         "send_b": send_b,
         "n_trials": n_trials,
-        "lambda_3_range": [lambda_3_min, lambda_3_max],
+        "metric_used": metric_col,
+        "lambda_3_source": source_desc,
+        "lambda_3_range": [round(float(lambda_3_samples.min()), 3), round(float(lambda_3_samples.max()), 3)],
         "war_sigma": war_sigma,
         "win_probability": round(win_prob, 4),
         "mean_delta_nsv": round(mean_nsv, 2),
         "median_delta_nsv": round(median_nsv, 2),
-        "credible_interval_90": [round(float(ci_90[0]), 2), round(float(ci_90[1]), 2)],
+        "scenario_interval_90": [round(float(ci_90[0]), 2), round(float(ci_90[1]), 2)],
+        "break_even_lambda_3": round(float(break_even), 3),
         "headline_takeaway": (
-            f"Across {n_trials:,} Monte Carlo trials sampling lambda_3 in [{lambda_3_min:.2f}, {lambda_3_max:.2f}] "
-            f"and WAR measurement error sigma={war_sigma:.2f}, Cleveland's Second Apron escape remains net-positive "
-            f"in {win_prob * 100:.1f}% of simulated scenarios (mean Delta NSV +${mean_nsv / 1_000_000.0:.2f}M, "
-            f"90% credible interval [${ci_90[0] / 1_000_000.0:.2f}M, +${ci_90[1] / 1_000_000.0:.2f}M])."
+            f"With lambda_3 drawn from {source_desc} and WAR measurement noise sigma={war_sigma:.2f}, "
+            f"{CANONICAL_TEAM_NAMES.get(team_a, team_a)}'s ({team_a}) Second Apron escape via {send_a[0]} -> {send_b[0]} is net-positive in "
+            f"{win_prob * 100:.1f}% of scenarios (mean Delta NSV ${mean_nsv / 1e6:+.2f}M, 90% scenario interval "
+            f"[${ci_90[0] / 1e6:+.2f}M, ${ci_90[1] / 1e6:+.2f}M]). Break-even requires lambda_3 >= {break_even:.3f}."
         ),
     }
+
+
+def calculate_flagship_uncertainty_pair(
+    n_trials: int = 10000,
+    seed: int = 42,
+    df_players: pd.DataFrame | None = None,
+    df_teams: pd.DataFrame | None = None,
+    cost_per_win: float = DEFAULT_COST_PER_WIN,
+    metric_col: str = DEFAULT_METRIC,
+) -> dict[str, Any]:
+    """Execute uncertainty simulations for both flagship cases side by side."""
+    robust = calculate_headline_uncertainty(
+        team_a="CLE",
+        send_a=["Max Strus"],
+        team_b="DAL",
+        send_b=["Caleb Martin"],
+        n_trials=n_trials,
+        seed=seed,
+        df_players=df_players,
+        df_teams=df_teams,
+        cost_per_win=cost_per_win,
+        metric_col=metric_col,
+    )
+    high_stakes = calculate_headline_uncertainty(
+        team_a="CLE",
+        send_a=["Jarrett Allen"],
+        team_b="DET",
+        send_b=["Isaiah Stewart"],
+        n_trials=n_trials,
+        seed=seed,
+        df_players=df_players,
+        df_teams=df_teams,
+        cost_per_win=cost_per_win,
+        metric_col=metric_col,
+    )
+    return {
+        "robust_flip": robust,
+        "high_stakes_flip": high_stakes,
+        "takeaway": (
+            f"Robust Flip (Strus -> Martin): {robust['win_probability']*100:.1f}% win probability, "
+            f"break-even lambda_3 = {robust['break_even_lambda_3']:.3f}. "
+            f"High-Stakes Flip (Allen -> Stewart): {high_stakes['win_probability']*100:.1f}% win probability, "
+            f"break-even lambda_3 = {high_stakes['break_even_lambda_3']:.3f}."
+        ),
+    }
+
 

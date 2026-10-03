@@ -133,27 +133,29 @@ The model provides formal sensitivity and generalization tools in [`boardman/sen
 ### A. True 2D Sensitivity Grid (`analyze_trade_sensitivity`)
 Evaluates trade surplus swings across a 2D parameter grid of $\lambda$ scale ($0.0\times$ to $2.0\times$) and Cost-Per-Win ($C_w \in [\$3.5\text{M}, \$6.5\text{M}]$).
 - At $\lambda = 0.00$, $\Delta NSV$ strictly collapses to the linear $/WAR result ($-\$10.53\text{M}$).
-- As $\lambda$ increases, $\Delta NSV$ grows monotonically, crossing the break-even tipping point at $\lambda \approx 0.46$.
+- As $\lambda$ increases, $\Delta NSV$ grows monotonically, turning positive at about $0.66\times$ baseline ($\lambda_3 \approx 0.46$ **with $\lambda_2 \approx 0.23$**, since every bracket scales together). This is not the same quantity as the fixed-$\lambda_2$ break-even below.
 
-### B. Formal Monte Carlo Uncertainty Analysis (`calculate_headline_uncertainty`)
-Rather than relying on a single deterministic point estimate, the engine evaluates joint parameter elasticity and measurement uncertainty across 10,000 simulated trials:
-- Second Apron friction elasticity: $\lambda_3 \sim \text{Uniform}(0.40, 0.85)$
-- On-court WAR measurement noise: $\Delta\text{WAR}_{\text{noise}} \sim \text{Normal}(0, 0.35)$
+### B. Break-Even λ₃ (`calculate_break_even_lambda_3`) & Scenario Simulation (`calculate_headline_uncertainty`)
+Holding $\lambda_2 = 0.35$ fixed, $\Delta NSV$ is linear in $\lambda_3$ for a Bracket 3 → 2 escape, so the break-even is solved exactly from two engine evaluations:
+- **Required friction relief:** $\$10.53\text{M}$/yr (the linear $/WAR deficit)
+- **Break-even:** $\lambda_3 \ge 0.58$ (single-season WAR); $\lambda_3 \ge 0.78$ under the multi-season WAR prior, above the 0.70 baseline
 
-**Results:**
-- **Cleveland Escape Win Probability:** **$59.9\%$** (trade is net-positive in ~60% of simulated states of the world)
-- **Mean Expected $\Delta NSV$:** **$+\$1.98\text{M}$**
-- **90% Credible Interval:** $[-\$7.47\text{M}, +\$11.48\text{M}]$
+The scenario simulation draws an *assumed* $\lambda_3 \sim \text{Uniform}(0.40, 0.85)$ and WAR noise $\sim \text{Normal}(0, 0.35)$ over 10,000 trials:
+- **Share of scenarios net-positive:** $60.2\%$
+- **Mean scenario $\Delta NSV$:** $+\$2.04\text{M}$
+- **90% scenario interval:** $[-\$7.37\text{M}, +\$11.55\text{M}]$
+
+This is not a posterior or credible interval. The interval straddles zero, and the 60% largely restates where 0.58 sits in the assumed range.
 
 ### C. The Apron Escape Frontier: Allowable Talent Sacrifice Curve (`calculate_apron_escape_frontier`)
 Under linear $/WAR, shedding $\$5.0\text{M}$ in salary allows a team to tolerate losing at most:
 $$\Delta W_{\text{linear}} = -\frac{S_{\text{shed}}}{C_w} = -\frac{\$5.0\text{M}}{\$5.23\text{M}} = -0.96 \text{ WAR}$$
-Under the **Apron Friction Model**, dropping below the Second Apron unlocks **$+\$15.93\text{M}$ in friction relief**, expanding the allowable talent sacrifice to:
+Under the **Apron Friction Model** at baseline $\lambda_3 = 0.70$, dropping below the Second Apron unlocks **$+\$15.93\text{M}$ in friction relief**, expanding the allowable talent sacrifice to:
 $$\Delta W_{\text{apron}} = -\frac{\$5.0\text{M} + \$15.93\text{M}}{\$5.23\text{M}} = -3.93 \text{ WAR}$$
 This represents a **4.1x expansion in tolerable on-court talent loss**, explaining why real front offices execute salary dumps that look disastrous under linear metrics.
 
 ### D. Cleveland Second Apron Escape Menu (`scan_apron_escape_trades`)
-Under our cost assumptions, **escaping the Second Apron is worth +$15.93M/year to Cleveland (roughly ~3.05 WAR in roster friction relief)**. Any trade that sacrifices less than ~3.05 WAR in talent while shedding at least $3.86M is strictly net-positive for Cleveland's franchise value, whereas linear $/WAR models reject every talent sacrifice. Rather than presenting this as 30 isolated discoveries, the engine provides an optimized escape menu ranking Cleveland's top candidate trades by Net Surplus and talent retention efficiency.
+If escaping the Second Apron is worth $R$/yr to Cleveland, any trade that sheds at least $3.86M and costs less than $R / C_w$ WAR is net-positive, whereas linear $/WAR models reject every talent sacrifice. At the baseline scenario, $R = +\$15.93\text{M}$ (~3.05 WAR). The scan ranks Cleveland's legal 1-for-1 escapes by $\Delta NSV$. It defaults to the multi-season WAR prior (`metric_col="war_projected"`) and excludes the team's top three players by that prior (`protect_top_n=3`: Mitchell, Harden, Mobley), so it does not recommend trading the franchise core.
 
 ### E. League Ranking Elasticity (`calculate_ranking_elasticity`)
 Quantifies how player contract rankings diverge between linear ($GSV$) and apron ($NSV$) models:
@@ -163,20 +165,20 @@ Quantifies how player contract rankings diverge between linear ($GSV$) and apron
 
 ---
 
-## 8. Empirical Calibration & Econometric Discontinuity Proofs
+## 8. Empirical Tests & Econometric Discontinuity Evidence
 
-`boardman-gets-paid` anchors its parameters directly in real-world NBA transactions and multi-season econometric evidence:
+$\lambda$ is a scenario input from the statutory cost breakdown in `config.py`. We test it against real NBA transactions and multi-season payroll data:
 
-### A. Revealed-Preference Derivation of $\lambda_3$ from Salary Dumps
-When a contender sacrifices draft equity $E$ to shed salary $S$ with zero incoming salary, the transaction delivers financial savings ($S$ in salary and luxury tax cash) at the cost of surrendering draft equity $E$ and lost win production ($\Delta W \times C_w$). The trade is rational if and only if:
-$$\Delta \text{Friction Relief} \ge E - S + (\Delta W \times C_w) - T_{\text{tax}}$$
+### A. Can Salary Dumps Identify $\lambda_3$? (No)
+When a contender sacrifices draft equity $E$ to shed salary $S$ with zero incoming salary, it saves $S$ in salary and $T_{\text{tax}}$ in luxury tax, and gives up $E$ plus lost win production ($\Delta W \times C_w$). The trade is rational if and only if:
+$$\Delta \text{Friction Relief} \ge E - S - T_{\text{tax}} + (\Delta W \times C_w)$$
 
 In the Denver Nuggets / Reggie Jackson transaction (June 27, 2024), Denver surrendered $3$ second-round draft picks ($\approx \$8.0\text{M}$ in surplus equity) to dump Reggie Jackson's $\$5.25\text{M}$ contract to Charlotte for zero incoming salary:
-- **Net Asset Cost Paid:** Because shedding Jackson saved Denver $\$5.25\text{M}$ in cash, saved salary counts in the team's favor:
-  $$\text{Net Cost} = E - S = \$8.00\text{M} - \$5.25\text{M} = \mathbf{\$2.75\text{M}}$$
-- Across Denver's 2024–25 quadratic roster bases ($B_{\text{pre}} = \$42.25\text{M}, B_{\text{post}} = \$42.05\text{M}$) dropping from Bracket 3 ($\lambda_3$) to Bracket 2 ($\lambda_2 = 0.35$):
-  $$\lambda_3 \ge \frac{\text{Net Cost} + 0.35 \times B_{\text{post}}}{B_{\text{pre}}} \ge \mathbf{0.41} \quad (\text{or } \ge \mathbf{0.48} \text{ if Jackson cost } 0.5\text{ WAR})$$
-- **Lower Bound Nature & Knife-Edge Proximity:** Willingness-to-pay establishes an empirical lower bound, not an upper bound. Our Cleveland apron escape flip requires $\lambda_3 \ge 0.46$. Real-world market salary dumps bound $\lambda_3$ right on the knife-edge of Cleveland's break-even point.
+- **Decision-Time vs. Realized Context:** At decision time, pre-free agency projections positioned Denver at ~$\$193.0\text{M}$ (~$\$4.1\text{M}$ over the Second Apron of $\$188.93\text{M}$, assuming Kentavious Caldwell-Pope was retained). Subsequently, KCP left in free agency, leaving realized payroll at $\$182.57\text{M}$ (or $\$187.82\text{M}$ with Jackson, $\$1.1\text{M}$ below the apron).
+- **Costs and Savings:** $E \approx \$8.0\text{M}$, $S = \$5.25\text{M}$ (pre-tax net cost $\$2.75\text{M}$), and $T_{\text{tax}} \approx \$14.3\text{M}$ from the 2023 CBA incremental tax schedule (`calculate_luxury_tax`, non-repeater rates, realized payroll; $\approx \$17.8\text{M}$ on the decision-time payroll). Net cost after tax $\approx -\$11.5\text{M}$.
+- Across Denver's 2024–25 quadratic roster bases ($B_{\text{pre}} = \$42.25\text{M}, B_{\text{post}} = \$42.05\text{M}$):
+  $$\lambda_3 \ge \frac{E - S - T_{\text{tax}} + \Delta W \cdot C_w + 0.35 \times B_{\text{post}}}{B_{\text{pre}}} \ge \mathbf{0.08} \quad (\text{or } \mathbf{0.14} \text{ if Jackson cost } 0.5\text{ WAR})$$
+- **Non-binding:** both bounds are below $\lambda_2 = 0.35$. Tax cash alone justifies the dump, so deep-tax salary dumps cannot separate operational friction from tax savings. (An earlier version dropped $T_{\text{tax}}$ and reported $\lambda_3 \ge 0.41$.)
 
 ### B. Econometric Payroll Bunching, Placebo Controls & Statistical Power (2020–2026)
 Analyzing all 180 team-seasons across 2020–2026 reveals:
@@ -193,7 +195,7 @@ Analyzing all 180 team-seasons across 2020–2026 reveals:
 ## 9. Model Limitations, Blended Priors & Data Provenance
 
 1. **Temporal Scope:** All contracts, roster models, and apron evaluations analyze the **2025–26 NBA season** (with 2026–27 currently underway).
-2. **Single-Season Box-Score Scope vs. Multi-Season Prior:** Single-season box scores naturally penalize injured stars (e.g. Tyrese Haliburton, Jayson Tatum during injury stints). To address this, `boardman` incorporates a **Multi-Season Blended WAR Prior (`war_projected`)**, which regresses single-season box scores against 3-year historical baselines (Marcel/Bayesian approach). Under this model, Tatum and Haliburton are recognized as positive star assets, and underwater contracts like Zach LaVine, Khris Middleton, and Jordan Poole correctly occupy the bottom ranks.
+2. **Single-Season Box-Score Scope vs. Multi-Season Prior:** Single-season box scores naturally penalize injured stars (e.g. Tyrese Haliburton, Jayson Tatum during injury stints). To address this, `boardman` adopts a **Multi-Season Blended WAR Prior (`war_projected`)** as the primary default impact metric, which regresses single-season box scores against 3-year historical baselines (Marcel-style weighted regression approach). Under this model, Tatum and Haliburton are recognized as positive star assets, and underwater contracts like Zach LaVine, Khris Middleton, and Jordan Poole correctly occupy the bottom ranks.
 3. **Draft Pick Equity Valuation:** The engine models forfeited draft picks using empirical draft-value curves (~$11.5M average rookie contract surplus), but does not account for team-specific lottery protections or standings variance.
 4. **Dead Money Directional Resolution:**
    - *Damian Lillard:* Milwaukee waived and stretched Lillard ($\$22.5\text{M}$ dead money on MIL); Portland signed him on an active contract ($\$14.1\text{M}$ active roster on POR). In our engine, MIL Lillard is strictly flagged as `is_dead_money = True`, whereas POR Lillard is active roster (`is_dead_money = False`).

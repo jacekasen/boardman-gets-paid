@@ -8,6 +8,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 
 from boardman.config import (
+    DEFAULT_METRIC,
     DEFAULT_SEASON,
     MASTER_PLAYERS_PARQUET,
     MASTER_TEAMS_PARQUET,
@@ -97,7 +98,7 @@ def calculate_player_valuation(
     team_payroll: float,
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
-    metric_col: str = "war_vorp",
+    metric_col: str = DEFAULT_METRIC,
     uncle_dennis_cash: float = 0.0,
     friction_lambda: dict[int, float] | None = None,
 ) -> PlayerValuation:
@@ -109,7 +110,7 @@ def calculate_player_valuation(
     team = normalize_team(str(data.get("team", "FA")))
     cap_hit = float(data.get("salary", 0.0))
     cap_share = float(data.get("cap_share", (cap_hit / salary_cap) * 100.0 if salary_cap > 0 else 0.0))
-    war = float(data.get(metric_col, data.get("war_vorp", 0.0)))
+    war = float(data.get(metric_col, data.get("war_projected", data.get("war_vorp", data.get("war", 0.0)))))
 
     # Fair Production Value
     fair_value = war * cost_per_win
@@ -154,7 +155,7 @@ def calculate_roster_valuation(
     team_code: str = "TEAM",
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
-    metric_col: str = "war_vorp",
+    metric_col: str = DEFAULT_METRIC,
     friction_lambda: dict[int, float] | None = None,
 ) -> TeamValuation:
     """Aggregate fair values, gross surplus, friction penalties, and net surplus across a full roster."""
@@ -209,7 +210,7 @@ def calculate_roster_delta(
     post_payroll: float | None = None,
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
-    metric_col: str = "war_vorp",
+    metric_col: str = DEFAULT_METRIC,
     friction_lambda: dict[int, float] | None = None,
 ) -> RosterDelta:
     """Compute franchise-level surplus delta (Delta NSV) resulting from a roster transaction.
@@ -264,7 +265,7 @@ def calculate_roster_delta(
 def build_league_surplus_board(
     df_players: pd.DataFrame | None = None,
     df_teams: pd.DataFrame | None = None,
-    metric_col: str = "war_vorp",
+    metric_col: str = DEFAULT_METRIC,
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
     friction_lambda: dict[int, float] | None = None,

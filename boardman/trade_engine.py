@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from boardman.cba_rules import TradeComplianceCheck, check_trade_compliance
 from boardman.config import (
+    DEFAULT_METRIC,
     DEFAULT_SEASON,
     MASTER_PLAYERS_PARQUET,
     MASTER_TEAMS_PARQUET,
@@ -140,7 +141,7 @@ def evaluate_trade(
     df_teams: pd.DataFrame | None = None,
     cost_per_win: float = DEFAULT_COST_PER_WIN,
     salary_cap: float = SALARY_CAP_2025_26,
-    metric_col: str = "war_vorp",
+    metric_col: str = DEFAULT_METRIC,
     friction_lambda: dict[int, float] | None = None,
 ) -> TradeEvaluation:
     """Evaluate legality, apron restrictions, and Net Surplus swings for a proposed trade."""

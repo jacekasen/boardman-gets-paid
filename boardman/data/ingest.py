@@ -86,7 +86,7 @@ def load_raw_stats(source_path: Path, season: str = DEFAULT_SEASON) -> pd.DataFr
 def compute_multiseason_war_prior(
     source_seasons_path: Path = SOURCE_PLAYER_SEASONS,
 ) -> dict[str, float]:
-    """Compute a multi-season Bayesian WAR talent prior from historical player seasons (2023-24, 2024-25).
+    """Compute a multi-season blended WAR talent prior from historical player seasons (2023-24, 2024-25).
     Weights recent seasons: 2024-25 (60%) and 2023-24 (40%).
     """
     if not source_seasons_path.exists():
@@ -201,7 +201,7 @@ def build_master_players(
     merged["war_vorp"] = (merged["vorp"] * VORP_TO_WAR_MULTIPLIER).round(2)
     merged["war_blend"] = (0.5 * merged["war_vorp"] + 0.5 * merged["ws"]).round(2)
 
-    # Multi-season Bayesian WAR prior (addresses single-season injury blind spot for Tatum, Haliburton, etc.)
+    # Multi-season blended WAR prior (addresses single-season injury blind spot for Tatum, Haliburton, etc.)
     prior_war_map = compute_multiseason_war_prior()
 
     def calc_projected_war(row: pd.Series) -> float:

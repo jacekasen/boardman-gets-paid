@@ -4,57 +4,49 @@ This document reviews the benchmark case studies implemented in [`boardman/case_
 
 ---
 
-## Flagship Case Study: The Cleveland–Detroit Apron Escape (The "Thesis-Flip" Trade)
+## Flagship Case Studies: The Apron Escape Pair
 
 > **Core Research Question:** *What does the `boardman-gets-paid` model conclude that a linear Dollar-per-WAR model gets completely wrong?*
 
-### The Scenario
-The Cleveland Cavaliers entered the 2025–26 season as the NBA's lone **Bracket 3 / Second Apron team** with a committed payroll of **$\$211,686,176$**, sitting **$\$3,862,176$** over the Second Apron threshold ($\$207,824,000$). At $\lambda = 0.70$, Cleveland pays **$-\$31,070,854$** in annual friction drag, and their 2033 first-round draft pick is statutorily frozen.
+Rather than relying on a single transaction whose verdict flips depending on single-season injury variance, `boardman` presents a **Flagship Pair of Results** under our multi-season true-talent prior (`war_projected`):
 
-To escape the Second Apron, Cleveland proposes a straight player swap with Detroit:
-- **Cleveland Outgoing:** Jarrett Allen ($\$20,000,000$ cap hit, $4.86$ WAR)
-- **Detroit Outgoing:** Isaiah Stewart ($\$15,000,000$ cap hit, $1.89$ WAR)
+### 1. 💎 Flagship 1: The Robust Second Apron Escape Flip (Cleveland ↔ Dallas)
+- **The Trade:** Cleveland ($211.7M payroll, Bracket 3 / Second Apron) trades **Max Strus** ($15.94M cap hit, 1.10 WAR) to Dallas for **Caleb Martin** ($9.59M cap hit, -0.23 WAR).
+- **Salary Saved:** $+\$6,342,408$ (drops Cleveland's payroll to $\$205.3\text{M}$, **comfortably below the Second Apron of $\$207.8\text{M}$** into Bracket 2).
+- **On-Court Talent Delta:** $-1.33$ WAR (Strus 1.10 $\to$ Martin -0.23).
+- **Linear $/WAR Verdict:** ❌ **REJECT ($-\$613,322$ net deficit)**. Linear models reject because $1.33$ wins is valued at $\$6.96\text{M}$ against $\$6.34\text{M}$ in salary saved.
+- **Roster-Wide Friction Relief:** **$+\$15,901,898$** (recovers operational mobility, unfreezes 2033 first-round draft pick).
+- **Board Man Net Surplus Verdict:** ✅ **ACCEPT ($+\$15,288,576$ Net Surplus Gain)**.
+- **Break-Even & Robustness:** Break-even requires $\lambda_3 \ge 0.356$ (holding $\lambda_2 = 0.35$ fixed). Because the linear deficit is only $\$613\text{K}$, this flip succeeds across **100% of scenarios** drawn from our 4 sourced statutory cost components!
 
 ---
 
-### Comparison of Model Verdicts
-
-| Analytical Dimension | Linear $/WAR Model | `boardman-gets-paid` (Apron Friction Engine) |
-| :--- | :--- | :--- |
-| **Salary Saved** | $+\$5,000,000$ | $+\$5,000,000$ |
-| **WAR Contribution Delta** | $-2.97$ WAR ($1.89 - 4.86$) | $-2.97$ WAR ($1.89 - 4.86$) |
-| **On-Court Production Delta** | $-\$15,532,720$ | $-\$15,532,720$ |
-| **Roster-Wide Friction Relief** | **$\$0$ (Ignored)** | **$+\$15,932,842$ (Apron Escape!)** |
-| **2033 Draft Pick Status** | Ignored | **Unfrozen** |
-| **Final Franchise Surplus Swing ($\Delta NSV$)** | **$-\$10,532,720$** | **$+\$5,400,122$** |
-| **Front Office Verdict** | ❌ **REJECT (Cleveland gets fleeced)** | ✅ **ACCEPT (Cleveland captures +$5.4M net surplus)** |
-
-### Why the Apron Model is Right
-A naive linear model assumes franchise payroll state does not matter; it only evaluates the $-2.97$ on-court win drop against the $\$5.0\text{M}$ salary savings. 
-
-In reality, shedding that $\$5.0\text{M}$ reduces Cleveland's payroll to **$\$206,686,176$**, dropping them **below the Second Apron ($<\$207,824,000$) into Bracket 2**.
-- Roster friction $\lambda$ drops from $0.70 \to 0.35$ across the entire roster.
-- Total roster friction falls from **$\$31.07\text{M} \to \$15.14\text{M}$**, immediately recovering **$+\$15.93\text{M}$ in operational liquidity**.
-- This friction relief ($+\$15.93\text{M}$) completely offsets the talent loss ($-\$10.53\text{M}$), resulting in a net franchise value gain of **$+\$5.40\text{M}$**.
+### 2. ⚡ Flagship 2: The High-Stakes, Assumption-Dependent Flip (Cleveland ↔ Detroit)
+- **The Trade:** Cleveland trades **Jarrett Allen** ($20.0M cap hit, 6.37 WAR) to Detroit for **Isaiah Stewart** ($15.0M cap hit, 1.70 WAR).
+- **Salary Saved:** $+\$5,000,000$ (drops Cleveland to $\$206.7\text{M}$, below the Second Apron).
+- **On-Court Talent Delta:** $-4.67$ WAR under multi-season true-talent baselines.
+- **Linear $/WAR Verdict:** ❌ **REJECT ($-\$19,423,502$ net deficit)**.
+- **Roster-Wide Friction Relief:** **$+\$15,931,490$**.
+- **Board Man Net Surplus Verdict (baseline $\lambda_3 = 0.70$):** ❌ **REJECT ($-\$3,492,012$ net deficit)**.
+- **The Insight:** Escaping the Second Apron cannot overcome a severe 4.67 WAR talent drop unless escaping is worth $\ge \$19.42\text{M}$/yr, requiring $\mathbf{\lambda_3 \ge 0.779}$ (win probability only ~3.4%). This illustrates a high-stakes organizational gamble on extreme friction severity.
+*(Note: Under single-season box scores where Allen missed time, the linear deficit was only -$10.53M and the trade flipped at $\lambda_3 \ge 0.58$. `boardman` transparently exposes this assumption sensitivity.)*
 
 ---
 
 ### The Core Analytical Principle & Cleveland's Candidate Escape Ranking
 
-> **The Fundamental Principle:** Under our cost assumptions, **escaping the Second Apron is worth +$15.93M/year to Cleveland (roughly ~3.05 WAR in roster friction relief)**. Any trade that sacrifices less than ~3.05 WAR in talent while shedding at least $3.86M is strictly net-positive for Cleveland's franchise value, whereas linear $/WAR models reject every talent sacrifice.
+> **The Fundamental Principle:** If escaping the Second Apron is worth $R$/yr to Cleveland, any trade that sheds at least $\$3.86\text{M}$ and costs less than $R / C_w$ WAR is net-positive, whereas linear $/WAR models reject every talent sacrifice. At the baseline scenario, $R = +\$15.93\text{M}$ (~3.05 WAR).
 
-Rather than treating candidate trades as isolated anecdotes, [`scan_apron_escape_trades`](file:///Users/jankasen/dev/boardman-gets-paid/boardman/sensitivity.py) evaluates all legal 1-for-1 swaps across the league to provide Cleveland with an **optimal apron escape ranking menu**:
+[`scan_apron_escape_trades`](file:///Users/jankasen/dev/boardman-gets-paid/boardman/sensitivity.py) evaluates all legal 1-for-1 swaps across the league to provide Cleveland with an **apron escape ranking menu**, using the multi-season WAR prior and protecting Cleveland's top three players (Mitchell, Harden, Mobley):
 
 | Cleveland Outgoing | Partner Franchise | Incoming Player | Salary Shed | On-Court WAR Loss | Linear $/WAR Verdict | Board Man Net Surplus |
 | :--- | :---: | :--- | :---: | :---: | :---: | :---: |
-| **Evan Mobley** | ORL | Franz Wagner | $\$7.7\text{M}$ | $-3.77$ WAR | $-\$12.0\text{M}$ | **$+\$5.0\text{M}$** |
-| **Evan Mobley** | NOP | Brandon Ingram | $\$10.4\text{M}$ | $-2.83$ WAR | $-\$4.4\text{M}$ | **$+\$12.7\text{M}$** |
-| **Donovan Mitchell** | MIA | Bam Adebayo | $\$11.6\text{M}$ | $-5.30$ WAR | $-\$16.1\text{M}$ | **$+\$1.2\text{M}$** |
-| **Donovan Mitchell** | CHO | LaMelo Ball | $\$11.2\text{M}$ | $-2.69$ WAR | $-\$2.9\text{M}$ | **$+\$14.3\text{M}$** |
-| **James Harden** | TOR | Immanuel Quickley | $\$6.9\text{M}$ | $-2.95$ WAR | $-\$8.6\text{M}$ | **$+\$8.1\text{M}$** |
-| **Jarrett Allen** | POR | Matisse Thybulle | $\$9.0\text{M}$ | $-2.80$ WAR | $-\$5.7\text{M}$ | **$+\$10.5\text{M}$** |
-| **Jarrett Allen** | WAS | Alex Sarr | $\$8.7\text{M}$ | $-2.52$ WAR | $-\$4.5\text{M}$ | **$+\$11.6\text{M}$** |
-| **Jarrett Allen** | DET | Isaiah Stewart | $\$5.0\text{M}$ | $-2.97$ WAR | $-\$10.5\text{M}$ | **$+\$5.4\text{M}$** |
+| **Max Strus** | CHI | Jaden Ivey | $\$5.8\text{M}$ | $-1.14$ WAR | $-\$0.1\text{M}$ | **$+\$15.7\text{M}$** |
+| **Sam Merrill** | UTA | Kevin Love | $\$4.3\text{M}$ | $-1.14$ WAR | $-\$1.6\text{M}$ | **$+\$14.0\text{M}$** |
+| **Jarrett Allen** | POR | Robert Williams | $\$6.7\text{M}$ | $-1.78$ WAR | $-\$2.6\text{M}$ | **$+\$13.4\text{M}$** |
+| **Dennis Schröder** | WAS | Tre Johnson | $\$5.9\text{M}$ | $-2.78$ WAR | $-\$8.7\text{M}$ | **$+\$7.2\text{M}$** |
+
+*Multi-season WAR prior (`war_projected`), baseline $\lambda_3 = 0.70$; 30 flips across 15 partner teams. Mitchell, Harden and Mobley are protected (`protect_top_n=3`).*
 
 ---
 
@@ -63,23 +55,22 @@ Rather than treating candidate trades as isolated anecdotes, [`scan_apron_escape
 Under linear $/WAR, shedding $\$5.0\text{M}$ allows a team to tolerate losing at most:
 $$\Delta W_{\text{linear}} = -\frac{S_{\text{shed}}}{C_w} = -\frac{\$5.0\text{M}}{\$5.23\text{M}} = -0.96 \text{ WAR}$$
 
-Under the **Board Man Apron Friction Model**, dropping below the Second Apron unlocks **$+\$15.93\text{M}$ in friction relief**, expanding the allowable talent sacrifice to:
+Under the **Board Man Apron Friction Model** at baseline $\lambda_3 = 0.70$, dropping below the Second Apron unlocks **$+\$15.93\text{M}$ in friction relief**, expanding the allowable talent sacrifice to:
 $$\Delta W_{\text{apron}} = -\frac{\$5.0\text{M} + \$15.93\text{M}}{\$5.23\text{M}} = -3.93 \text{ WAR}$$
 
-This represents a **4.1x expansion in tolerable on-court talent loss**, demonstrating mathematically why real front offices execute salary dumps that look irrational to box-score linear models.
+This represents a **4.1x expansion in tolerable on-court talent loss** at the baseline scenario.
 
 ---
 
 ## Real-World Empirical Benchmarks: Salary Dumps, Placebos & Apron Discontinuity
 
 ### 1. Denver Nuggets / Reggie Jackson Salary Dump (June 27, 2024)
-- **Context:** Denver sat $\approx \$4.07\text{M}$ above the 2024–25 Second Apron ($\$188.93\text{M}$).
+- **Context:** At the June 27, 2024 decision time, pre-free agency projections positioned Denver at ~$\$193.0\text{M}$ (~$\$4.1\text{M}$ over the Second Apron of $\$188.93\text{M}$, assuming Kentavious Caldwell-Pope was retained). Subsequently, KCP left in free agency, leaving realized end-of-season payroll at $\$182.57\text{M}$ (or $\$187.82\text{M}$ with Jackson, $\$1.1\text{M}$ below the apron).
 - **The Transaction:** Denver sent Reggie Jackson ($\$5,250,000$) and **three second-round draft picks** (2025, 2029, 2030) to Charlotte for $\$0$ in incoming salary.
-- **Econometric Sign Correction (Net Cost Paid):** Shedding Jackson saved Denver $\$5.25\text{M}$ in salary and associated luxury tax cash. Surrendering 3 second-round picks ($\approx \$8.0\text{M}$ surplus equity at $\$2.67\text{M}$/pick) against $\$5.25\text{M}$ saved results in a **net economic asset cost paid**:
-  $$\text{Net Cost} = E - S = \$8.00\text{M} - \$5.25\text{M} = \mathbf{\$2.75\text{M}}$$
-- **Revealed-Preference Lower Bound:** Rational execution implies $\Delta \text{Friction Relief} \ge \text{Net Cost}$. Across Denver's 2024–25 quadratic roster bases ($B_{\text{pre}} = \$42.25\text{M}, B_{\text{post}} = \$42.05\text{M}$):
-  $$\lambda_3 \ge \frac{\$2.75\text{M} + 0.35 \times B_{\text{post}}}{B_{\text{pre}}} \ge \mathbf{0.41} \quad (\text{or } \ge \mathbf{0.48} \text{ if Jackson cost } 0.5\text{ WAR})$$
-- **Knife-Edge Reality:** Market salary dumps bound $\lambda_3$ from below. Our Cleveland apron escape flip requires $\lambda_3 \ge 0.46$. The real transaction data loosely bounds $\lambda_3$ right on the knife-edge of Cleveland's break-even point.
+- **Costs and Savings:** 3 second-round picks ($E \approx \$8.0\text{M}$) against $S = \$5.25\text{M}$ salary saved (pre-tax net cost $\$2.75\text{M}$) **and** $T_{\text{tax}} \approx \$14.3\text{M}$ in luxury tax saved (2023 CBA incremental schedule, non-repeater rates, realized payroll). Net cost after tax $\approx -\$11.5\text{M}$.
+- **Revealed-Preference Bound:** Across Denver's 2024–25 quadratic roster bases ($B_{\text{pre}} = \$42.25\text{M}, B_{\text{post}} = \$42.05\text{M}$):
+  $$\lambda_3 \ge \frac{E - S - T_{\text{tax}} + \Delta W \cdot C_w + 0.35 \times B_{\text{post}}}{B_{\text{pre}}} \ge \mathbf{0.08} \quad (\text{or } \mathbf{0.14} \text{ if Jackson cost } 0.5\text{ WAR})$$
+- **Non-binding:** both are below $\lambda_2 = 0.35$. Tax cash alone justifies the dump, so it does not identify $\lambda_3$. Second Apron friction has to be judged against the statutory cost breakdown instead. (An earlier version omitted $T_{\text{tax}}$ and reported $\lambda_3 \ge 0.41$.)
 
 ### 2. Multi-Season Econometric Payroll Bunching, Placebo Controls & Statistical Power (2020–2026)
 Analyzing 180 team-seasons across 2020–2026 reveals:

@@ -13,8 +13,48 @@ from typing import Any
 import pandas as pd
 from pydantic import BaseModel, Field
 
-from boardman.config import FRICTION_LAMBDA, SOURCE_PLAYER_SALARIES
+from boardman.config import (
+    FRICTION_LAMBDA,
+    SALARY_CAP_2023_24_BASE,
+    SOURCE_PLAYER_SALARIES,
+    SOURCE_TEAM_SALARIES,
+)
+from boardman.clustering import HISTORICAL_CBA_THRESHOLDS
 from boardman.valuation import DEFAULT_COST_PER_WIN
+
+# 2024-25 statutory thresholds used for the Denver benchmark
+SALARY_CAP_2024_25 = 140_588_000.0
+LUXURY_TAX_2024_25 = HISTORICAL_CBA_THRESHOLDS["2024-25"]["tax"]
+SECOND_APRON_2024_25 = HISTORICAL_CBA_THRESHOLDS["2024-25"]["apron2"]
+
+# 2023 CBA Art. VII Sec. 12: incremental luxury tax rates per tax bracket. Rates above the last listed
+# bracket keep rising by $0.50 per bracket. Bracket width ($5M in 2023-24) is indexed to cap growth.
+NON_REPEATER_TAX_RATES = [1.50, 1.75, 2.50, 3.25]
+REPEATER_TAX_RATES = [2.50, 2.75, 3.50, 4.25]
+TAX_BRACKET_WIDTH_2023_24 = 5_000_000.0
+
+
+def calculate_luxury_tax(
+    payroll: float,
+    tax_line: float,
+    salary_cap: float,
+    repeater: bool = False,
+) -> float:
+    """Luxury tax owed on a payroll under the 2023 CBA incremental bracket schedule."""
+    excess = payroll - tax_line
+    if excess <= 0:
+        return 0.0
+    width = TAX_BRACKET_WIDTH_2023_24 * salary_cap / SALARY_CAP_2023_24_BASE
+    rates = REPEATER_TAX_RATES if repeater else NON_REPEATER_TAX_RATES
+    tax = 0.0
+    bracket = 0
+    while excess > 0:
+        rate = rates[bracket] if bracket < len(rates) else rates[-1] + 0.50 * (bracket - len(rates) + 1)
+        chunk = min(excess, width)
+        tax += chunk * rate
+        excess -= chunk
+        bracket += 1
+    return tax
 
 
 class SalaryDumpCaseStudy(BaseModel):
@@ -40,15 +80,17 @@ EMPIRICAL_SALARY_DUMPS: list[SalaryDumpCaseStudy] = [
         salary_shed=5_250_000.0,
         draft_equity_attached="3 Second-Round Picks (2025, 2029, 2030)",
         estimated_pick_value=8_000_000.0,  # ~ $2.67M per mid/high 2nd round pick in surplus equity
-        net_asset_cost_paid=2_750_000.0,  # $8.0M pick equity sacrificed minus $5.25M salary saved
+        net_asset_cost_paid=2_750_000.0,  # $8.0M pick equity sacrificed minus $5.25M salary saved (before tax)
         target_threshold="Second Apron ($188.93M in 2024-25)",
-        implied_lambda_lower=0.41,
+        implied_lambda_lower=0.0,  # Non-binding once luxury tax savings are counted (see estimate_revealed_preference_lambda)
         rationale=(
-            "Denver sat ~$4.1M above the 2024-25 Second Apron ($188.93M). By attaching three 2nd-round draft picks "
-            "to dump Reggie Jackson's $5.25M player option to Charlotte for zero return salary, Denver escaped "
-            "below the Second Apron into Bracket 2. Because shedding Jackson saved $5.25M in salary, the net "
-            "asset cost Denver paid was pick equity minus salary saved ($8.0M - $5.25M = $2.75M). Across Denver's "
-            "2024-25 roster base, this transaction establishes an empirical lower bound of lambda_3 >= 0.41."
+            "At the June 27, 2024 decision time, pre-free agency projections positioned Denver at ~$193.0M "
+            "(~$4.1M over the 2024-25 Second Apron of $188.93M, assuming Kentavious Caldwell-Pope re-signed). "
+            "By attaching three 2nd-round draft picks to dump Reggie Jackson's $5.25M player option to Charlotte "
+            "for zero return salary, Denver preemptively shed salary (and subsequently KCP departed in free agency, "
+            "leaving realized payroll at $182.57M, or $187.82M with Jackson, $1.1M below the apron). Net of salary saved, "
+            "the picks cost $2.75M, but Denver was deep in the luxury tax, saving roughly $14M-$19M in tax. Tax savings "
+            "alone justify the trade, so this transaction does not bound lambda_3 above lambda_2."
         ),
     ),
     SalaryDumpCaseStudy(
@@ -73,45 +115,39 @@ EMPIRICAL_SALARY_DUMPS: list[SalaryDumpCaseStudy] = [
 
 def estimate_revealed_preference_lambda(
     salaries_path: Path = SOURCE_PLAYER_SALARIES,
+    team_salaries_path: Path = SOURCE_TEAM_SALARIES,
     cost_per_win: float = DEFAULT_COST_PER_WIN,
+    break_even_lambda_3: float | None = None,
 ) -> dict[str, Any]:
-    """Dynamically calculate the revealed-preference lower bound on lambda_3 from Denver's Reggie Jackson dump.
+    """Revealed-preference lower bound on lambda_3 from Denver's Reggie Jackson dump, including tax savings.
 
-    Mathematical Formulation & Sign Correction:
-    -------------------------------------------
-    When a franchise sacrifices pick equity E to dump salary S with zero incoming salary,
-    the transaction delivers a financial benefit (saving S in salary and saving luxury tax cash T_tax)
-    at the cost of surrendering pick equity E and losing on-court win production Delta_W.
-
+    Mathematical Formulation:
+    -------------------------
+    When a franchise sacrifices pick equity E to dump salary S with zero incoming salary, it saves S in
+    salary and T_tax in luxury tax, and gives up E plus any on-court production (Delta_W * C_w).
     The trade is rational if and only if:
         Delta_Friction + S + T_tax >= E + (Delta_W * C_w)
-        Delta_Friction >= E - S + (Delta_W * C_w) - T_tax
 
-    Let Net_Cost_Paid = E - S.
-    For Denver in 2024-25:
-        E ≈ $8.0M (3 second-round picks), S = $5.25M
-        Net_Cost_Paid = $8.0M - $5.25M = $2.75M (if Delta_W = 0 and T_tax omitted).
+    With Delta_Friction = lambda_3 * B_pre - lambda_2 * B_post (Bracket 3 -> Bracket 2):
+        lambda_3 >= (E - S - T_tax + Delta_W * C_w + lambda_2 * B_post) / B_pre
 
-    Roster Friction Formulation:
-        Delta_Friction = (lambda_3 * Base_pre) - (lambda_2 * Base_post)
-        where lambda_2 = 0.35 (Bracket 2 First Apron).
+    T_tax is computed from the 2023 CBA incremental tax schedule (non-repeater rates, which give the
+    smallest savings and therefore the most favorable bound for the model). Two payroll baselines:
+      - Decision-time: projected payroll at the June 2024 dump (~$4.07M over the Second Apron).
+      - Realized: Denver's end-of-season 2024-25 payroll plus Jackson's salary (smaller tax savings,
+        since Denver later shed more salary). This is the conservative case reported as the headline.
 
-    Solving for the lower bound on lambda_3:
-        lambda_3 >= (Net_Cost_Paid + 0.35 * Base_post) / Base_pre
-
-    Note on Bounds:
-        A willingness-to-pay observation is an inequality that establishes only a LOWER bound.
-        It does not establish an upper bound.
+    A lower bound at or below lambda_2 is non-binding: the model already requires lambda_3 >= lambda_2.
     """
-    cap_2024_25 = 140_588_000.0
     rj_sal = 5_250_000.0
     pick_equity = 8_000_000.0
     salary_saved = rj_sal
-    net_cost_paid_replacement = pick_equity - salary_saved  # $2,750,000
+    net_cost_before_tax = pick_equity - salary_saved  # $2,750,000
 
-    # Calculate actual Denver 2024-25 roster quadratic bases from dataset if available
+    # Denver 2024-25 roster quadratic bases (fallbacks match the dataset when the source is unavailable)
     b_pre = 42_249_621.37
     b_post = 42_053_569.79
+    realized_payroll_post = 182_574_315.0
 
     if salaries_path.exists():
         try:
@@ -120,39 +156,74 @@ def estimate_revealed_preference_lambda(
             if not den.empty:
                 rj_row = pd.DataFrame([{"salary": rj_sal}])
                 den_pre = pd.concat([den[["salary"]], rj_row], ignore_index=True)
-                b_pre = float(sum((s**2) / cap_2024_25 for s in den_pre["salary"]))
-                b_post = float(sum((s**2) / cap_2024_25 for s in den["salary"]))
+                b_pre = float(sum((s**2) / SALARY_CAP_2024_25 for s in den_pre["salary"]))
+                b_post = float(sum((s**2) / SALARY_CAP_2024_25 for s in den["salary"]))
         except Exception:
             pass
 
-    lambda_2 = FRICTION_LAMBDA[2]  # 0.35
+    if team_salaries_path.exists():
+        try:
+            df_team = pd.read_csv(team_salaries_path)
+            row = df_team[(df_team["team"] == "DEN") & (df_team["season"] == "2024-25")]
+            if not row.empty:
+                realized_payroll_post = float(row["team_known_salary_total"].iloc[0])
+        except Exception:
+            pass
 
-    # Case A: Reggie Jackson valued as replacement level (0 WAR loss)
-    lambda_3_lower_0_war = (net_cost_paid_replacement + lambda_2 * b_post) / b_pre
+    def tax_saved(payroll_pre: float) -> float:
+        return calculate_luxury_tax(payroll_pre, LUXURY_TAX_2024_25, SALARY_CAP_2024_25) - calculate_luxury_tax(
+            payroll_pre - rj_sal, LUXURY_TAX_2024_25, SALARY_CAP_2024_25
+        )
 
-    # Case B: Reggie Jackson valued as moderate rotation player (0.5 WAR loss)
-    on_court_cost_half_war = 0.5 * cost_per_win
-    lambda_3_lower_half_war = (net_cost_paid_replacement + on_court_cost_half_war + lambda_2 * b_post) / b_pre
+    decision_payroll_pre = SECOND_APRON_2024_25 + 4_070_000.0
+    realized_payroll_pre = realized_payroll_post + rj_sal
+    tax_saved_decision = tax_saved(decision_payroll_pre)
+    tax_saved_realized = tax_saved(realized_payroll_pre)
 
-    # Break-even threshold required for the Cleveland-Detroit trade to flip
-    cleveland_break_even_lambda = 0.46
+    lambda_2 = FRICTION_LAMBDA[2]
+
+    def bound(tax: float, war_loss: float) -> float:
+        return (net_cost_before_tax - tax + war_loss * cost_per_win + lambda_2 * b_post) / b_pre
+
+    # Headline: conservative (realized payroll, smallest tax savings)
+    lower_0_war = bound(tax_saved_realized, 0.0)
+    lower_half_war = bound(tax_saved_realized, 0.5)
+    lower_decision = bound(tax_saved_decision, 0.0)
+    # The bound omitting tax, kept only to show how much the omitted term mattered
+    lower_no_tax = bound(0.0, 0.0)
+
+    is_binding = lower_half_war > lambda_2
+
+    if break_even_lambda_3 is None:
+        from boardman.sensitivity import calculate_break_even_lambda_3
+
+        break_even_lambda_3 = calculate_break_even_lambda_3()["break_even_lambda_3"]
 
     return {
         "benchmark_transaction": "Denver Nuggets -> Charlotte Hornets (Reggie Jackson + 3 SRPs, June 2024)",
         "salary_shed": salary_saved,
         "draft_equity_sacrificed": pick_equity,
-        "net_asset_cost_paid": net_cost_paid_replacement,
+        "net_asset_cost_paid": net_cost_before_tax,
+        "luxury_tax_saved_realized": round(tax_saved_realized, 2),
+        "luxury_tax_saved_decision_time": round(tax_saved_decision, 2),
+        "net_cost_after_tax": round(net_cost_before_tax - tax_saved_realized, 2),
         "denver_roster_base_pre": round(b_pre, 2),
         "denver_roster_base_post": round(b_post, 2),
-        "implied_lambda_3_lower_bound": round(lambda_3_lower_0_war, 3),
-        "implied_lambda_3_lower_bound_with_05_war": round(lambda_3_lower_half_war, 3),
+        "implied_lambda_3_lower_bound": round(lower_0_war, 3),
+        "implied_lambda_3_lower_bound_with_05_war": round(lower_half_war, 3),
+        "implied_lambda_3_lower_bound_decision_time": round(lower_decision, 3),
+        "implied_lambda_3_lower_bound_ignoring_tax": round(lower_no_tax, 3),
+        "lambda_2": lambda_2,
+        "is_bound_binding": bool(is_binding),
         "model_baseline_lambda_3": FRICTION_LAMBDA[3],
-        "cleveland_flip_break_even_lambda": cleveland_break_even_lambda,
-        "is_baseline_consistent": bool(FRICTION_LAMBDA[3] >= lambda_3_lower_0_war),
+        "cleveland_flip_break_even_lambda": break_even_lambda_3,
         "headline_takeaway": (
-            f"Real-world salary dumps imply lambda_3 >= {lambda_3_lower_0_war:.2f}. "
-            f"Our Cleveland apron escape flip requires lambda_3 >= {cleveland_break_even_lambda:.2f}. "
-            "Market salary dump data loosely bounds lambda_3 right on the knife-edge of Cleveland's break-even point."
+            f"Counting luxury tax, Denver's dump saved ~${tax_saved_realized / 1e6:.1f}M in tax against a "
+            f"${net_cost_before_tax / 1e6:.2f}M net pick cost, so tax savings alone justify it. The implied bound "
+            f"(lambda_3 >= {lower_0_war:.2f}, or {lower_half_war:.2f} with a 0.5 WAR loss) sits below "
+            f"lambda_2 = {lambda_2:.2f} and is non-binding. Salary-dump data does not identify lambda_3; "
+            f"Cleveland's break-even (lambda_3 >= {break_even_lambda_3:.2f}) must be judged against the "
+            "cost-breakdown estimate instead."
         ),
         "case_studies": [c.model_dump() for c in EMPIRICAL_SALARY_DUMPS],
     }

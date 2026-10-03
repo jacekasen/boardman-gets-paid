@@ -1,6 +1,8 @@
 """Configuration, directory paths, team aliases, and 2025-26 statutory CBA financial thresholds."""
 
 from pathlib import Path
+from typing import Any
+
 
 # Repository root and local data paths
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -44,23 +46,67 @@ TRADE_BUFFER_ALLOWANCE_2025_26 = round(250_000 * CBA_CAP_INFLATION_2025_26) # $2
 # Public Metric Calibration Constants
 VORP_TO_WAR_MULTIPLIER = 2.70
 REPLACEMENT_LEVEL_BPM = -2.0
+DEFAULT_METRIC = "war_projected"
+
+# Sourced 2023 CBA Second Apron Cost Components (Annualized Economic Drag)
+# Used to ground lambda_3 in statutory rules and empirical sports economics literature
+SECOND_APRON_COST_COMPONENTS: list[dict[str, Any]] = [
+    {
+        "component_id": "frozen_draft_pick",
+        "name": "Frozen 1st-Round Draft Pick & Demotion to Pick 30",
+        "statutory_basis": "2023 CBA Article VII, Section 7(g)",
+        "citation": "FiveThirtyEight / Kevin Pelton (ESPN) / Cranston draft surplus curves (middle-first #15-#20: $10.5M 4-yr rookie surplus vs pick #30: $3.2M)",
+        "description": "7-year-out first-round pick frozen from trade; demoted to pick 30 if team remains in Second Apron 2 of 4 years.",
+        "low_usd": 6_000_000.0,
+        "high_usd": 8_500_000.0,
+        "midpoint_usd": 7_300_000.0,
+    },
+    {
+        "component_id": "lost_tp_mle",
+        "name": "Forfeiture of Taxpayer Mid-Level Exception (TP-MLE)",
+        "statutory_basis": "2023 CBA Article VII, Section 6(b)(iii)",
+        "citation": "Spotrac / HoopsHype contract market value for rotation-level taxpayer MLE signings ($5.18M-$5.70M AAV in 2024-2026)",
+        "description": "Second Apron teams are statutorily barred from using the Taxpayer Mid-Level Exception to sign veteran rotation contributors.",
+        "low_usd": 4_800_000.0,
+        "high_usd": 6_200_000.0,
+        "midpoint_usd": 5_400_000.0,
+    },
+    {
+        "component_id": "aggregation_illiquidity",
+        "name": "Trade Aggregation & Cash Ban Illiquidity Haircut",
+        "statutory_basis": "2023 CBA Article VII, Section 8(e)",
+        "citation": "Asset transfer illiquidity discount literature (Amihud & Mendelson 1986; Silber 1991: 10%-15% discount on movable salary base)",
+        "description": "Prohibition on aggregating salaries, taking back more salary than sent, or sending cash in trades.",
+        "low_usd": 6_500_000.0,
+        "high_usd": 10_500_000.0,
+        "midpoint_usd": 8_000_000.0,
+    },
+    {
+        "component_id": "repeater_and_buyout",
+        "name": "Repeater Tax Surcharge Drag & Buyout Market Ban",
+        "statutory_basis": "2023 CBA Article VII, Section 8(c) & Section 12",
+        "citation": "Larry Coon CBA FAQ and historical repeater tax acceleration schedules on contending rosters ($3.75-$4.75+/dollar)",
+        "description": "Escalating multi-tier luxury tax rates plus prohibition on signing buyout-market free agents making above MLE.",
+        "low_usd": 6_000_000.0,
+        "high_usd": 11_000_000.0,
+        "midpoint_usd": 8_500_000.0,
+    },
+]
+
+# Total annualized drag across the 4 components: $23.3M - $36.2M (midpoint ~$29.2M)
+# Across Cleveland's roster quadratic base ($44.39M), this implies lambda_3 in [0.525, 0.816] (midpoint ~0.66)
 
 # Apron Friction Multipliers lambda(T)
-# Hypothesized opportunity-cost breakdown based on statutory 2023 CBA penalties:
 # - Bracket 1 (Tax, lambda=0.15): Marginal cash tax drag ($1.50-$2.50/dollar) without operational bans.
 # - Bracket 2 (1st Apron, lambda=0.35): Hard 100% salary matching + forfeiture of Bi-Annual Exception (~$4.7M asset).
-# - Bracket 3 (2nd Apron, lambda=0.70): Estimated from an assumed statutory cost breakdown:
-#     1. Frozen 1st-round draft pick 7 years out & demoted to pick 30: ~$7.3M estimated rookie surplus loss.
-#     2. Forfeiture of Taxpayer Mid-Level Exception: ~$5.4M estimated replacement cost.
-#     3. Zero salary aggregation liquidity haircut: 10%-15% illiquidity discount (~$7M-$10M).
-#     4. Repeater luxury tax surcharges ($3.75-$4.75+/dollar).
-#     Total annualized drag on a 2nd Apron contender is ~$25M-$32M, which lambda=0.70 approximates on CLE ($31.1M).
+# - Bracket 3 (2nd Apron, lambda=0.70): Baseline operational drag calibrated from the 4 statutory cost components (~$29M-$31M).
 FRICTION_LAMBDA = {
     0: 0.00,  # Below Luxury Tax: Full flexibility, no tax penalty
     1: 0.15,  # Tax to First Apron: Cash tax penalties, Bi-annual exception preserved
     2: 0.35,  # First to Second Apron: Hard salary matching, loss of bi-annual exception
     3: 0.70,  # Above Second Apron: Frozen draft picks, no salary aggregation, no cash
 }
+
 
 # Team code normalization (Basketball-Reference codes <-> Standard NBA codes)
 TEAM_ALIASES = {
