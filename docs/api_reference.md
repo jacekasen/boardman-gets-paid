@@ -40,7 +40,8 @@ Calculates Fair Production Value, Gross Surplus, Apron Friction Tax, Net Surplus
 - **Parameters:**
   - `player` *(dict | BaseModel)*: Player record containing `salary`, `war_projected` (or other metric), `is_dead_money`, `is_salary_known`, and `contract_tier`.
   - `team_payroll` *(float)*: Current committed team payroll in USD.
-  - `cost_per_win` *(float)*: Open-market cost per win (default: $5,193,442.76).
+  - `cost_per_win` *(float)*: Open-market marginal cost per win (default: $5,421,253.62, the `calibrate_cost_per_win()` result for 2025-26). Fair value is `replacement_salary + WAR × cost_per_win`.
+  - `replacement_salary` *(float)*: Cost of a 0-WAR replacement player (default: league minimum, $2,100,000).
   - `salary_cap` *(float)*: Season salary cap threshold (default: $154,647,000).
   - `metric_col` *(str)*: Metric to evaluate (default: `'war_projected'`).
 - **Returns:** [`PlayerValuation`](file:///Users/jankasen/dev/boardman-gets-paid/boardman/valuation.py#L23) object.
@@ -71,12 +72,25 @@ def build_league_surplus_board(
     df_players: pd.DataFrame | None = None,
     df_teams: pd.DataFrame | None = None,
     metric_col: str = DEFAULT_METRIC,
-    cost_per_win: float = DEFAULT_COST_PER_WIN,
+    cost_per_win: float | None = None,
     salary_cap: float = SALARY_CAP_2025_26,
     friction_lambda: dict[int, float] | None = None,
 ) -> pd.DataFrame
 ```
-Generates the complete league-wide surplus leaderboard, ordered by `net_surplus` descending, with full contract tiers and ROI multiples.
+Generates the complete league-wide surplus leaderboard, ordered by `net_surplus` descending, with full contract tiers and ROI multiples. When `cost_per_win` is omitted it is calibrated from `df_players` on `metric_col`. Unverified salaries have `NaN` surplus and sort last.
+
+---
+
+### `calibrate_cost_per_win`
+```python
+def calibrate_cost_per_win(
+    df_players: pd.DataFrame,
+    metric_col: str = DEFAULT_METRIC,
+    replacement_salary: float = REPLACEMENT_SALARY,
+    veteran_floor: float = VETERAN_CALIBRATION_FLOOR,
+) -> float
+```
+Returns the marginal open-market price of one win: `sum(salary - replacement_salary) / sum(WAR)` over every active, verified contract at or above `veteran_floor` ($5M). Raises `ValueError` if the pool's total WAR is not positive.
 
 ---
 

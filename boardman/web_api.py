@@ -18,13 +18,14 @@ from boardman.config import (
     SALARY_CAP_2025_26,
     SECOND_APRON_2025_26,
 )
-from boardman.valuation import DEFAULT_COST_PER_WIN, build_league_surplus_board
+from boardman.valuation import REPLACEMENT_SALARY, build_league_surplus_board, calibrate_cost_per_win
 
 
 def snapshot() -> dict:
     players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
     teams = pd.read_parquet(MASTER_TEAMS_PARQUET)
-    board = build_league_surplus_board(df_players=players, df_teams=teams)
+    cost_per_win = calibrate_cost_per_win(players)
+    board = build_league_surplus_board(df_players=players, df_teams=teams, cost_per_win=cost_per_win)
     raw_records = board.to_dict(orient="records")
     records = [
         {k: (None if isinstance(v, float) and (math.isnan(v) or math.isinf(v)) else v) for k, v in r.items()}
@@ -33,7 +34,8 @@ def snapshot() -> dict:
     return {
         "season": DEFAULT_SEASON,
         "metric": "Multi-season WAR",
-        "costPerWin": DEFAULT_COST_PER_WIN,
+        "costPerWin": round(cost_per_win, 2),
+        "replacementSalary": REPLACEMENT_SALARY,
         "thresholds": {
             "cap": SALARY_CAP_2025_26,
             "tax": LUXURY_TAX_2025_26,

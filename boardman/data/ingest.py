@@ -34,6 +34,7 @@ from boardman.config import (
     normalize_team,
 )
 from boardman.schema import IngestionReport
+from boardman.valuation import calibrate_cost_per_win
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -292,17 +293,8 @@ def build_master_players(
 
     merged["contract_tier"] = merged.apply(assign_contract_tier, axis=1)
 
-    # Calculate unconstrained veteran cost per win ($/WAR)
-    known_positive = merged[
-        (merged["salary"] >= 5_000_000)
-        & (merged["war_vorp"] > 0)
-        & (~merged["is_dead_money"])
-        & (merged["is_salary_known"])
-    ]
-    if not known_positive.empty and known_positive["war_vorp"].sum() > 0:
-        unconstrained_cost_per_win = float(known_positive["salary"].sum() / known_positive["war_vorp"].sum())
-    else:
-        unconstrained_cost_per_win = 5_193_442.76
+    # Marginal veteran cost per win, on the same metric the valuation engine uses
+    unconstrained_cost_per_win = calibrate_cost_per_win(merged)
 
     active_players = merged[~merged["is_dead_money"]]
     qa_summary = {

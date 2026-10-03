@@ -12,12 +12,17 @@ from boardman.config import (
     DEFAULT_SEASON,
     MASTER_PLAYERS_PARQUET,
     MASTER_TEAMS_PARQUET,
+    MINIMUM_SALARY_2025_26,
     SALARY_CAP_2025_26,
     get_team_bracket,
     normalize_team,
 )
 
-DEFAULT_COST_PER_WIN = 5_193_442.76  # Calibrated 2025-26 unconstrained veteran $/WAR
+# Calibrated 2025-26 marginal $/WAR from calibrate_cost_per_win() on the processed player table.
+# Recorded in ingestion_report.json; tests assert the two stay in sync.
+DEFAULT_COST_PER_WIN = 5_421_253.62
+REPLACEMENT_SALARY = MINIMUM_SALARY_2025_26
+VETERAN_CALIBRATION_FLOOR = 5_000_000
 
 
 class PlayerValuation(BaseModel):
@@ -31,12 +36,12 @@ class PlayerValuation(BaseModel):
     war: float
     cost_per_win: float
     fair_value: float
-    gross_surplus: float
+    gross_surplus: float | None = Field(description="Fair value minus cap hit; None when salary is unverified")
     bracket: int
     lambda_tax: float
     friction_tax: float
-    net_surplus: float
-    surplus_efficiency: float = Field(description="Net Surplus per dollar of cap hit (NSV / Salary)")
+    net_surplus: float | None = Field(description="Gross surplus minus friction; None when salary is unverified")
+    surplus_efficiency: float | None = Field(description="Net Surplus per dollar of cap hit (NSV / Salary)")
     is_dead_money: bool = False
     is_salary_known: bool = True
     contract_tier: str = "Standard"
@@ -76,6 +81,29 @@ class RosterDelta(BaseModel):
     friction_relief: float
 
 
+def calibrate_cost_per_win(
+    df_players: pd.DataFrame,
+    metric_col: str = DEFAULT_METRIC,
+    replacement_salary: float = REPLACEMENT_SALARY,
+    veteran_floor: float = VETERAN_CALIBRATION_FLOOR,
+) -> float:
+    """Marginal open-market price of one win above replacement.
+
+    C_w = sum(cap hit - replacement salary) / sum(WAR) over every active, verified veteran
+    contract at or above the floor. Outcomes are not filtered, so contracts that produced
+    little or negative WAR stay in the market price.
+    """
+    vets = df_players[
+        (df_players["salary"] >= veteran_floor)
+        & (~df_players["is_dead_money"].astype(bool))
+        & (df_players["is_salary_known"].astype(bool))
+    ]
+    wins = float(vets[metric_col].sum())
+    if wins <= 0:
+        raise ValueError("Veteran calibration pool has non-positive total WAR")
+    return float((vets["salary"] - replacement_salary).sum() / wins)
+
+
 def compute_apron_friction(
     cap_hit: float,
     team_payroll: float,
@@ -105,8 +133,13 @@ def calculate_player_valuation(
     metric_col: str = DEFAULT_METRIC,
     uncle_dennis_cash: float = 0.0,
     friction_lambda: dict[int, float] | None = None,
+    replacement_salary: float = REPLACEMENT_SALARY,
 ) -> PlayerValuation:
-    """Evaluate an individual player's Fair Production Value, GSV, Friction Tax, and NSV."""
+    """Evaluate an individual player's Fair Production Value, GSV, Friction Tax, and NSV.
+
+    A replacement-level (0 WAR) player is worth the league minimum, so
+    FV = replacement_salary + WAR * C_w. Surplus is left as None when the salary is unverified.
+    """
     data = player.model_dump() if isinstance(player, BaseModel) else dict(player)
 
     player_id = str(data.get("player_id", "unknown"))
@@ -131,19 +164,22 @@ def calculate_player_valuation(
         net_surplus = gross_surplus
         surplus_efficiency = -1.0 if cap_hit > 0 else 0.0
         roi_multiple = 0.0
+    elif not is_salary_known or cap_hit <= 0:
+        fair_value = replacement_salary + war * cost_per_win
+        gross_surplus = None
+        friction_tax = 0.0
+        net_surplus = None
+        surplus_efficiency = None
+        roi_multiple = None
     else:
-        fair_value = war * cost_per_win
+        fair_value = replacement_salary + war * cost_per_win
         gross_surplus = fair_value - effective_cost
         _, _, friction_tax = compute_apron_friction(
             cap_hit, team_payroll, salary_cap=salary_cap, friction_lambda=friction_lambda
         )
         net_surplus = gross_surplus - friction_tax
-        if is_salary_known and cap_hit > 0:
-            surplus_efficiency = net_surplus / cap_hit
-            roi_multiple = round(fair_value / cap_hit, 2)
-        else:
-            surplus_efficiency = 0.0
-            roi_multiple = None
+        surplus_efficiency = net_surplus / cap_hit
+        roi_multiple = round(fair_value / cap_hit, 2)
 
     return PlayerValuation(
         player_id=player_id,
@@ -154,12 +190,12 @@ def calculate_player_valuation(
         war=round(war, 2),
         cost_per_win=cost_per_win,
         fair_value=round(fair_value, 2),
-        gross_surplus=round(gross_surplus, 2),
+        gross_surplus=None if gross_surplus is None else round(gross_surplus, 2),
         bracket=bracket,
         lambda_tax=lambda_tax,
         friction_tax=round(friction_tax, 2),
-        net_surplus=round(net_surplus, 2),
-        surplus_efficiency=round(surplus_efficiency, 3),
+        net_surplus=None if net_surplus is None else round(net_surplus, 2),
+        surplus_efficiency=None if surplus_efficiency is None else round(surplus_efficiency, 3),
         is_dead_money=is_dead_money,
         is_salary_known=is_salary_known,
         contract_tier=contract_tier,
@@ -203,9 +239,9 @@ def calculate_roster_valuation(
         )
         valuations.append(val)
         total_fv += val.fair_value
-        total_gsv += val.gross_surplus
+        total_gsv += val.gross_surplus or 0.0
         total_friction += val.friction_tax
-        total_nsv += val.net_surplus
+        total_nsv += val.net_surplus or 0.0
 
     return TeamValuation(
         team=team_code,
@@ -285,15 +321,21 @@ def build_league_surplus_board(
     df_players: pd.DataFrame | None = None,
     df_teams: pd.DataFrame | None = None,
     metric_col: str = DEFAULT_METRIC,
-    cost_per_win: float = DEFAULT_COST_PER_WIN,
+    cost_per_win: float | None = None,
     salary_cap: float = SALARY_CAP_2025_26,
     friction_lambda: dict[int, float] | None = None,
 ) -> pd.DataFrame:
-    """Build full league leaderboard of player valuations, Gross Surplus, Friction, and Net Surplus."""
+    """Build full league leaderboard of player valuations, Gross Surplus, Friction, and Net Surplus.
+
+    When cost_per_win is omitted it is calibrated from df_players on the same metric being valued.
+    Players with unverified salaries have no surplus and sort to the bottom.
+    """
     if df_players is None:
         df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
     if df_teams is None:
         df_teams = pd.read_parquet(MASTER_TEAMS_PARQUET)
+    if cost_per_win is None:
+        cost_per_win = calibrate_cost_per_win(df_players, metric_col=metric_col)
 
     team_payrolls = df_teams.set_index("team")["total_payroll"].to_dict()
 
@@ -311,5 +353,5 @@ def build_league_surplus_board(
         )
         valuations.append(v.model_dump())
 
-    df_board = pd.DataFrame(valuations).sort_values("net_surplus", ascending=False).reset_index(drop=True)
+    df_board = pd.DataFrame(valuations).sort_values("net_surplus", ascending=False, na_position="last").reset_index(drop=True)
     return df_board

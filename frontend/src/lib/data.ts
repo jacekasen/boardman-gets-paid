@@ -11,8 +11,10 @@ export const brackets = [
   "Second apron",
 ];
 
-export const money = (value: number, signed = false) =>
-  `${value < 0 ? "−" : signed && value > 0 ? "+" : ""}$${(Math.abs(value) / 1e6).toFixed(2)}M`;
+export const money = (value: number | null, signed = false) =>
+  value === null
+    ? "N/A"
+    : `${value < 0 ? "−" : signed && value > 0 ? "+" : ""}$${(Math.abs(value) / 1e6).toFixed(2)}M`;
 
 export const compact = (value: number) => `$${(value / 1e6).toFixed(1)}M`;
 

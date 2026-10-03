@@ -17,5 +17,6 @@ def test_snapshot_metrics():
     data = snapshot()
     assert data["season"] == "2025-26"
     assert data["costPerWin"] > 4_000_000
+    assert data["replacementSalary"] == 2_100_000
     assert "thresholds" in data
     assert data["thresholds"]["cap"] == 154_647_000

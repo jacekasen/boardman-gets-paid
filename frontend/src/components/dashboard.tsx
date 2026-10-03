@@ -56,9 +56,17 @@ export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [team, setTeam] = useState("all");
   const [tier, setTier] = useState("all");
-  const [mode, setMode] = useState<"all" | "bargains" | "anchors" | "roi">("all");
+  const [mode, setMode] = useState<"all" | "bargains" | "anchors" | "roi">(
+    "all",
+  );
   const [sort, setSort] = useState<{
-    key: "net_surplus" | "salary" | "war" | "friction_tax" | "fair_value" | "roi_multiple";
+    key:
+      | "net_surplus"
+      | "salary"
+      | "war"
+      | "friction_tax"
+      | "fair_value"
+      | "roi_multiple";
     asc: boolean;
   }>({ key: "net_surplus", asc: false });
   const [page, setPage] = useState(0);
@@ -69,11 +77,23 @@ export default function Dashboard() {
       .filter((p) => {
         if (team !== "all" && p.team !== team) return false;
         if (tier !== "all" && p.contract_tier !== tier) return false;
-        if (mode === "bargains" && p.net_surplus <= 0) return false;
-        if (mode === "anchors" && p.net_surplus >= 0) return false;
-        if (mode === "roi" && (!p.is_salary_known || p.roi_multiple === null)) return false;
+        if (
+          mode === "bargains" &&
+          (p.net_surplus === null || p.net_surplus <= 0)
+        )
+          return false;
+        if (
+          mode === "anchors" &&
+          (p.net_surplus === null || p.net_surplus >= 0)
+        )
+          return false;
+        if (mode === "roi" && (!p.is_salary_known || p.roi_multiple === null))
+          return false;
         if (query) {
-          const q = query.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const q = query
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase();
           const target = `${p.player_name} ${p.team} ${p.contract_tier}`
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
@@ -83,8 +103,11 @@ export default function Dashboard() {
         return true;
       })
       .sort((a, b) => {
-        const valA = (a[sort.key] as number | null | undefined) ?? -999999999;
-        const valB = (b[sort.key] as number | null | undefined) ?? -999999999;
+        const valA = a[sort.key] as number | null | undefined;
+        const valB = b[sort.key] as number | null | undefined;
+        // Unverified values sort last in either direction
+        if (valA == null || valB == null)
+          return (valA == null ? 1 : 0) - (valB == null ? 1 : 0);
         return (valA - valB) * (sort.asc ? 1 : -1);
       });
   }, [query, team, tier, mode, sort]);
@@ -114,7 +137,9 @@ export default function Dashboard() {
     const csv = [
       cols.join(","),
       ...filtered.map((p) =>
-        cols.map((k) => `"${String(p[k] ?? "").replaceAll('"', '""')}"`).join(","),
+        cols
+          .map((k) => `"${String(p[k] ?? "").replaceAll('"', '""')}"`)
+          .join(","),
       ),
     ].join("\n");
     const url = URL.createObjectURL(
@@ -256,7 +281,9 @@ export default function Dashboard() {
                 />
                 <Metric
                   title="POSITIVE SURPLUS"
-                  value={String(active.filter((p) => p.net_surplus > 0).length)}
+                  value={String(
+                    active.filter((p) => (p.net_surplus ?? 0) > 0).length,
+                  )}
                   note="Players producing above their cost"
                   icon="02"
                   positive
@@ -312,7 +339,8 @@ export default function Dashboard() {
                     Minimum drag.
                   </h2>
                   <p>
-                    Identifying surplus value anomalies: who outperforms their cap hit, and who anchors their franchise.
+                    Identifying surplus value anomalies: who outperforms their
+                    cap hit, and who anchors their franchise.
                   </p>
                   <div className="trade-mini">
                     <span>
@@ -385,7 +413,11 @@ export default function Dashboard() {
                   )}
                 </label>
                 <div className="table-filters">
-                  <div className="mode-pills" role="radiogroup" aria-label="Arbitrage preset">
+                  <div
+                    className="mode-pills"
+                    role="radiogroup"
+                    aria-label="Arbitrage preset"
+                  >
                     <button
                       className={`mode-pill ${mode === "all" ? "active" : ""}`}
                       onClick={() => {
@@ -439,7 +471,9 @@ export default function Dashboard() {
                     <option value="Rookie Scale">Rookie Scale</option>
                     <option value="Max / Supermax">Max / Supermax</option>
                     <option value="Mid-Level">Mid-Level</option>
-                    <option value="Minimum / Rotation">Minimum / Rotation</option>
+                    <option value="Minimum / Rotation">
+                      Minimum / Rotation
+                    </option>
                     <option value="Two-Way / Unknown">Two-Way / Unknown</option>
                   </select>
                   <select
@@ -531,7 +565,9 @@ export default function Dashboard() {
                         </td>
                         <td>
                           <span
-                            className={`tier-badge tier-${(p.contract_tier || "Standard")
+                            className={`tier-badge tier-${(
+                              p.contract_tier || "Standard"
+                            )
                               .toLowerCase()
                               .replace(/[^a-z0-9]/g, "-")}`}
                           >
@@ -542,7 +578,10 @@ export default function Dashboard() {
                           {p.is_salary_known ? (
                             money(p.salary)
                           ) : (
-                            <span className="muted" title="Two-way or non-guaranteed salary unverified in cap ledger">
+                            <span
+                              className="muted"
+                              title="Two-way or non-guaranteed salary unverified in cap ledger"
+                            >
                               Two-Way / ~0
                             </span>
                           )}
@@ -550,13 +589,18 @@ export default function Dashboard() {
                         <td className="numeric">{p.war.toFixed(2)}</td>
                         <td className="numeric">{money(p.fair_value)}</td>
                         <td
-                          className={`numeric surplus ${p.net_surplus >= 0 ? "positive" : "negative"}`}
+                          className={`numeric surplus ${p.net_surplus === null ? "muted" : p.net_surplus >= 0 ? "positive" : "negative"}`}
                         >
                           {money(p.net_surplus, true)}
                         </td>
                         <td className="numeric">
-                          {p.roi_multiple !== null && p.roi_multiple !== undefined ? (
-                            <strong className={p.roi_multiple >= 1.0 ? "positive" : "negative"}>
+                          {p.roi_multiple !== null &&
+                          p.roi_multiple !== undefined ? (
+                            <strong
+                              className={
+                                p.roi_multiple >= 1.0 ? "positive" : "negative"
+                              }
+                            >
                               {p.roi_multiple.toFixed(2)}x
                             </strong>
                           ) : (
@@ -735,7 +779,13 @@ export default function Dashboard() {
             <div className="detail-value">
               <span>NET SURPLUS VALUE</span>
               <strong
-                className={selected.net_surplus >= 0 ? "positive" : "negative"}
+                className={
+                  selected.net_surplus === null
+                    ? "muted"
+                    : selected.net_surplus >= 0
+                      ? "positive"
+                      : "negative"
+                }
               >
                 {money(selected.net_surplus, true)}
               </strong>
@@ -755,7 +805,8 @@ export default function Dashboard() {
                 ["Apron friction drag", money(selected.friction_tax)],
                 [
                   "ROI efficiency multiple",
-                  selected.roi_multiple !== null && selected.roi_multiple !== undefined
+                  selected.roi_multiple !== null &&
+                  selected.roi_multiple !== undefined
                     ? `${selected.roi_multiple.toFixed(2)}x`
                     : "N/A",
                 ],
@@ -827,6 +878,7 @@ function Scatter({ onSelect }: { onSelect: (p: Player) => void }) {
   const [hover, setHover] = useState<Player | null>(null);
   const x = (salary: number) => 54 + (salary / 65e6) * 565;
   const y = (war: number) => 245 - ((war + 3) / 31) * 221;
+  const plotted = active.filter((p) => p.is_salary_known);
   return (
     <div className="scatter-wrap">
       <svg
@@ -852,19 +904,19 @@ function Scatter({ onSelect }: { onSelect: (p: Player) => void }) {
           </text>
         ))}
         <line
-          x1={x(0)}
+          x1={x(league.replacementSalary)}
           y1={y(0)}
           x2={x(65e6)}
-          y2={y(65e6 / league.costPerWin)}
+          y2={y((65e6 - league.replacementSalary) / league.costPerWin)}
           className="fair-line"
         />
-        {active.map((p) => (
+        {plotted.map((p) => (
           <circle
             key={`${p.team}-${p.player_id}`}
             cx={x(p.salary)}
             cy={y(p.war)}
             r={p.salary > 40e6 ? 4.6 : 3.4}
-            className={`scatter-dot ${p.net_surplus > 0 ? "dot-positive" : "dot-negative"}`}
+            className={`scatter-dot ${(p.net_surplus ?? 0) > 0 ? "dot-positive" : "dot-negative"}`}
             onMouseEnter={() => setHover(p)}
             onMouseLeave={() => setHover(null)}
             onClick={() => onSelect(p)}
@@ -921,7 +973,7 @@ function Methodology() {
           {
             n: "01",
             title: "Start with production",
-            text: `A multi-season WAR baseline estimates player talent. Each projected win is valued at ${money(league.costPerWin)}, calibrated from unconstrained veteran contracts.`,
+            text: `A multi-season WAR baseline estimates player talent. A replacement-level player is worth the ${money(league.replacementSalary)} minimum, and each projected win above that is valued at ${money(league.costPerWin)}, calibrated from every veteran contract of $5M or more.`,
           },
           {
             n: "02",

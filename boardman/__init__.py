@@ -14,6 +14,7 @@ from boardman.valuation import (
     TeamValuation,
     build_league_surplus_board,
     calculate_player_valuation,
+    calibrate_cost_per_win,
     calculate_roster_valuation,
 )
 
@@ -24,6 +25,7 @@ __all__ = [
     "calculate_player_valuation",
     "calculate_roster_valuation",
     "build_league_surplus_board",
+    "calibrate_cost_per_win",
     "DEFAULT_COST_PER_WIN",
     "DEFAULT_METRIC",
     "DEFAULT_SEASON",

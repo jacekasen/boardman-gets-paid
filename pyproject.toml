@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "boardman-gets-paid"
-version = "0.1.0"
+version = "0.2.0"
 description = "Modern NBA CBA roster constraint and non-linear apron surplus valuation engine"
 authors = [
     { name = "Jace Kasen" }
@@ -22,10 +22,6 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
-]
-ui = [
-    "streamlit>=1.35.0",
-    "plotly>=5.18.0",
 ]
 
 [tool.setuptools.packages.find]

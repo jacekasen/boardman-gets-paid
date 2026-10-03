@@ -33,13 +33,16 @@ Single-season box scores are vulnerable to noise, small sample sizes, and mid-se
 
 In standard surplus models, pooling rookie-scale contracts (such as Victor Wembanyama producing superstar WAR on a $13.4M salary) severely distorts the market price of a win.
 
-To prevent this distortion, `boardman-gets-paid` calibrates $C_w$ exclusively on **unconstrained veteran contracts** (contracts $\ge \$5.0\text{M}$ with positive WAR, excluding dead money and unverified salaries):
+To prevent this distortion, `boardman-gets-paid` calibrates $C_w$ exclusively on **unconstrained veteran contracts**: every active, verified contract $\ge \$5.0\text{M}$, excluding dead money. Outcomes are **not** filtered, so expensive contracts that produced little or negative WAR stay in the market price. A replacement-level player costs the league minimum ($M = \$2.1\text{M}$), so only salary above the minimum buys wins:
 
-$$C_w = \frac{\sum_{j \in \text{Veterans}} \text{Cap Hit}_j}{\sum_{j \in \text{Veterans}} \hat{W}_j}$$
+$$C_w = \frac{\sum_{j \in \text{Veterans}} (\text{Cap Hit}_j - M)}{\sum_{j \in \text{Veterans}} \hat{W}_j}$$
+
+$C_w$ is calibrated on `war_projected`, the same metric used for valuation. By construction, the calibration pool nets to zero gross surplus in aggregate.
 
 For the 2025–26 NBA season snapshot:
-- **Baseline Cost Per Win ($C_w$):** **$\$5,193,442.76$** per win above replacement.
+- **Baseline Cost Per Win ($C_w$):** **$\$5,421,253.62$** per win above replacement.
 - This represents what NBA franchises pay in the open veteran market to acquire one marginal win above replacement level.
+- `calibrate_cost_per_win()` is the single source: ingestion writes it to `ingestion_report.json`, the web snapshot recomputes it, and a test asserts `DEFAULT_COST_PER_WIN` matches both.
 
 ---
 
@@ -47,9 +50,11 @@ For the 2025–26 NBA season snapshot:
 
 Using the calibrated cost per win:
 
-$$\text{Fair Production Value } (FV_i) = \hat{W}_i \times C_w$$
+$$\text{Fair Production Value } (FV_i) = M + \hat{W}_i \times C_w$$
 
 $$\text{Gross Surplus Value } (GSV_i) = FV_i - \text{Cap Hit}_i$$
+
+A 0-WAR player on the minimum breaks even. Players with unverified salaries (two-way and unconfirmed mid-season signings) have a fair value but **no surplus**: GSV, NSV, and ROI are `None`, and they sort below every verified contract.
 
 - **Positive Surplus:** Indicates a high-efficiency contract (production exceeds cap allocation).
 - **Negative Surplus:** Indicates a franchise anchor (cap allocation exceeds on-court contribution).
@@ -67,6 +72,8 @@ Where $\lambda(T)$ is conditioned on the franchise's payroll bracket:
 - **Bracket 2 ($\text{1st} \to \text{2nd Apron}$):** $\lambda = 0.35$ *(Hard matching constraint)*
 - **Bracket 3 ($> \text{2nd Apron}$):** $\lambda = 0.70$ *(Second apron operational bans)*
 
+The λ values are modeling assumptions, not estimates fitted to data. They are hand-set to rise with the operational restrictions of each bracket; treat friction-adjusted rankings for the nine tax-paying teams as a scenario rather than a measurement.
+
 ---
 
 ## 4. ROI Efficiency Multiple
@@ -75,8 +82,9 @@ To compare contract value on a normalized dollar-for-dollar basis, the engine ca
 
 $$\text{ROI Multiple} = \frac{FV_i}{\text{Cap Hit}_i}$$
 
-- **ROI > 1.0x:** Positive economic return (e.g. Victor Wembanyama at **5.36x**, Chet Holmgren at **4.12x**, Nikola Jokić at **2.42x**).
-- **ROI < 1.0x:** Negative return / underwater contract (e.g. Zach LaVine at **0.22x**, Paul George at **0.35x**).
+- **ROI > 1.0x:** Positive economic return (e.g. Victor Wembanyama at **5.77x**, Chet Holmgren at **3.53x**, Nikola Jokić at **2.56x**).
+- **ROI = 1.0x:** Replacement-level player on the league minimum.
+- **ROI < 1.0x:** Negative return / underwater contract (e.g. Zach LaVine at **0.28x**, Paul George at **0.40x**). Players with negative WAR have a negative ROI.
 - **Two-Way / Unknown:** Displays as `N/A` (never divided by zero or treated as infinite ROI).
 
 ---
