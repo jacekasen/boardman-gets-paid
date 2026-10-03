@@ -116,17 +116,25 @@ def build_master_players(
     merged["vorp"] = merged["vorp"].fillna(0.0).astype(float)
     merged["ws"] = merged["ws"].fillna(0.0).astype(float)
 
-    # Detect dead money allocations (e.g. waived/stretched contracts where player logged stats on another team)
+    # Detect dead money allocations (only for players with multiple salary records where one is stretched/waived)
+    multi_salary_pids = set(df_salaries["player_id"].value_counts()[lambda x: x > 1].index)
+
     def check_dead_money(row: pd.Series) -> bool:
-        if pd.isna(row["stats_team"]):
+        pid = row["player_id"]
+        # If a player has only one salary row, it is their active contracted team, NEVER dead money
+        if pid not in multi_salary_pids:
             return False
-        # If player played for a different team and row team is not among stats
-        st = str(row["stats_team"])
-        t = str(row["team"])
-        if st != t and not re.match(r"^\d+TM$", st):
-            # Player contract team doesn't match their playing team
+        st = row.get("stats_team")
+        if pd.notna(st) and str(st).strip() and str(st) != "nan":
+            st_clean = str(st).strip()
+            t_clean = str(row["team"]).strip()
+            if st_clean == t_clean or re.match(r"^\d+TM$", st_clean):
+                return False
             return True
-        return False
+        # If no stats available (e.g. injured), secondary smaller contract allocations are dead money
+        player_rows = df_salaries[df_salaries["player_id"] == pid]
+        max_salary = player_rows["salary"].max()
+        return bool(row["salary"] < max_salary)
 
     merged["is_dead_money"] = merged.apply(check_dead_money, axis=1)
 

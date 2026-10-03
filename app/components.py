@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -150,3 +152,32 @@ def render_trade_delta_cards(trade: Any) -> None:
                 st.error(f"❌ {v}")
         else:
             st.success("✅ Team CBA Compliance Cleared")
+
+
+def render_sensitivity_heatmap(df_sens: pd.DataFrame) -> go.Figure:
+    """Render a 2D heatmap showing how trade surplus swings as lambda and $/WAR vary."""
+    df_pivot = df_sens.pivot(index="cost_per_win_m", columns="lambda_scale", values="delta_nsv") / 1_000_000.0
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=df_pivot.values,
+            x=[f"{x:.2f}x" for x in df_pivot.columns],
+            y=[f"${y:.1f}M" for y in df_pivot.index],
+            colorscale="RdYlGn",
+            colorbar=dict(title="ΔNSV ($M)"),
+            hovertemplate="Friction Scale: %{x}<br>Cost/Win: %{y}<br><b>Cleveland ΔNSV: $%{z:+.2f}M</b><extra></extra>",
+        )
+    )
+
+    fig.update_layout(
+        title=dict(
+            text="<b>Cleveland Trade Surplus Sensitivity: λ Multiplier vs. $/WAR</b>",
+            font=dict(size=16),
+        ),
+        xaxis=dict(title="Apron Friction Scale (0.0x = Pure Linear $/WAR, 1.0x = Calibrated Base)"),
+        yaxis=dict(title="Open-Market Cost Per Win ($ Millions)"),
+        template="plotly_dark",
+        height=450,
+        margin=dict(l=40, r=40, t=60, b=40),
+    )
+    return fig

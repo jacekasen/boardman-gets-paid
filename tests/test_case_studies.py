@@ -1,10 +1,18 @@
-"""Unit tests for pre-packaged benchmark case studies."""
-
 from boardman.case_studies import (
+    run_cleveland_detroit_apron_escape,
     run_cleveland_second_apron_trap,
     run_kawhi_circumvention_case_study,
     run_spurs_celtics_liquidity_swap,
 )
+
+
+def test_cleveland_detroit_apron_escape_thesis_flip():
+    """Verify that Apron Friction flips the decision from Linear Reject to Board Man Accept."""
+    study = run_cleveland_detroit_apron_escape()
+    assert study["verdict_flipped"] is True
+    assert study["linear_delta_a"] < 0, "Linear $/WAR model must reject the trade"
+    assert study["boardman_delta_a"] > 0, "Apron friction model must accept the trade"
+    assert study["friction_relief_a"] > 15_000_000.0, "Must unlock over $15M in roster-wide friction relief"
 
 
 def test_cleveland_second_apron_case_study():

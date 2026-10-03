@@ -5,7 +5,7 @@ embiijo01,Joel Embiid,https://www.basketball-reference.com/players/e/embiijo01.h
 duranke01,Kevin Durant,https://www.basketball-reference.com/players/d/duranke01.html,2025-26,HOU,54708609.0,35.37644377194514,False,False,78,2840.0,21.1,4.5,4.7,10.7,0.18,12.69,11.7
 antetgi01,Giannis Antetokounmpo,https://www.basketball-reference.com/players/a/antetgi01.html,2025-26,MIL,54126450.0,35.0,False,False,36,1039.0,32.6,9.5,3.0,5.0,0.231,8.1,6.55
 butleji01,Jimmy Butler,https://www.basketball-reference.com/players/b/butleji01.html,2025-26,GSW,54126450.0,35.0,False,False,38,1182.0,23.5,5.5,2.3,5.7,0.233,6.21,5.96
-davisan02,Anthony Davis,https://www.basketball-reference.com/players/d/davisan02.html,2025-26,WAS,54126450.0,35.0,True,False,20,626.0,21.5,2.4,0.7,1.3,0.103,1.89,1.6
+davisan02,Anthony Davis,https://www.basketball-reference.com/players/d/davisan02.html,2025-26,WAS,54126450.0,35.0,False,False,20,626.0,21.5,2.4,0.7,1.3,0.103,1.89,1.6
 tatumja01,Jayson Tatum,https://www.basketball-reference.com/players/t/tatumja01.html,2025-26,BOS,54126450.0,35.0,False,False,16,522.0,20.3,4.8,0.9,1.6,0.148,2.43,2.02
 townska01,Karl-Anthony Towns,https://www.basketball-reference.com/players/t/townska01.html,2025-26,NYK,53142264.0,34.36359192224873,False,False,75,2322.0,22.0,3.3,3.1,9.5,0.197,8.37,8.93
 bookede01,Devin Booker,https://www.basketball-reference.com/players/b/bookede01.html,2025-26,PHO,53142264.0,34.36359192224873,False,False,64,2146.0,20.4,2.2,2.3,6.5,0.145,6.21,6.36
@@ -124,7 +124,7 @@ avdijde01,Deni Avdija,https://www.basketball-reference.com/players/a/avdijde01.h
 washipj01,P.J. Washington,https://www.basketball-reference.com/players/w/washipj01.html,2025-26,DAL,14152174.0,9.151276132094385,False,False,56,1736.0,13.1,-1.6,0.2,1.7,0.046,0.54,1.12
 adamsst01,Steven Adams,https://www.basketball-reference.com/players/a/adamsst01.html,2025-26,HOU,14130434.0,9.137218310086844,False,False,32,730.0,15.8,-0.5,0.3,2.1,0.141,0.81,1.46
 leverca01,Caris LeVert,https://www.basketball-reference.com/players/l/leverca01.html,2025-26,DET,14104000.0,9.120125188332135,False,False,60,1154.0,10.9,-0.4,0.5,1.6,0.066,1.35,1.48
-lillada01,Damian Lillard,https://www.basketball-reference.com/players/l/lillada01.html,2025-26,POR,14104000.0,9.120125188332135,False,True,0,0.0,,,0.0,0.0,,0.0,0.0
+lillada01,Damian Lillard,https://www.basketball-reference.com/players/l/lillada01.html,2025-26,POR,14104000.0,9.120125188332135,True,True,0,0.0,,,0.0,0.0,,0.0,0.0
 schrode01,Dennis Schröder,https://www.basketball-reference.com/players/s/schrode01.html,2025-26,CLE,14104000.0,9.120125188332135,False,False,70,1697.0,12.9,-2.2,-0.1,1.5,0.043,-0.27,0.62
 toppiob01,Obi Toppin,https://www.basketball-reference.com/players/t/toppiob01.html,2025-26,IND,14000000.0,9.052875257845288,False,False,24,424.0,19.7,3.0,0.5,1.1,0.124,1.35,1.23
 kispeco01,Corey Kispert,https://www.basketball-reference.com/players/k/kispeco01.html,2025-26,ATL,13975000.0,9.036709409170562,False,False,58,1080.0,13.1,-1.9,0.0,1.8,0.082,0.0,0.9
@@ -174,7 +174,7 @@ wiggiaa01,Aaron Wiggins,https://www.basketball-reference.com/players/w/wiggiaa01
 hausesa01,Sam Hauser,https://www.basketball-reference.com/players/h/hausesa01.html,2025-26,BOS,10044644.0,6.495207795818865,False,False,78,1934.0,11.9,0.6,1.3,5.0,0.124,3.51,4.26
 knuepko01,Kon Knueppel,https://www.basketball-reference.com/players/k/knuepko01.html,2025-26,CHO,10015680.0,6.4764786901782765,False,False,81,2551.0,17.1,2.8,3.1,8.0,0.151,8.37,8.18
 jonesde02,Derrick Jones Jr.,https://www.basketball-reference.com/players/j/jonesde02.html,2025-26,LAC,10000000.0,6.46633946988949,False,False,50,1350.0,13.3,-0.7,0.5,2.8,0.1,1.35,2.08
-balllo01,Lonzo Ball,https://www.basketball-reference.com/players/b/balllo01.html,2025-26,UTA,10000000.0,6.46633946988949,True,False,35,728.0,9.5,-1.1,0.2,0.6,0.042,0.54,0.57
+balllo01,Lonzo Ball,https://www.basketball-reference.com/players/b/balllo01.html,2025-26,UTA,10000000.0,6.46633946988949,False,False,35,728.0,9.5,-1.1,0.2,0.6,0.042,0.54,0.57
 thompam01,Amen Thompson,https://www.basketball-reference.com/players/t/thompam01.html,2025-26,HOU,9690600.0,6.266270926691108,False,False,79,2953.0,18.9,2.6,3.4,10.3,0.167,9.18,9.74
 martica02,Caleb Martin,https://www.basketball-reference.com/players/m/martica02.html,2025-26,DAL,9594044.0,6.203834539305644,False,False,58,856.0,9.3,-2.2,0.0,0.9,0.048,0.0,0.45
 castlst01,Stephon Castle,https://www.basketball-reference.com/players/c/castlst01.html,2025-26,SAS,9560520.0,6.182156782866787,False,False,68,2038.0,17.4,1.9,2.0,5.8,0.136,5.4,5.6
@@ -241,7 +241,7 @@ wallaca01,Cason Wallace,https://www.basketball-reference.com/players/w/wallaca01
 willico04,Cody Williams,https://www.basketball-reference.com/players/w/willico04.html,2025-26,UTA,5742480.0,3.7132825079051,False,False,67,1631.0,9.6,-5.5,-1.5,0.1,0.004,-4.05,-1.98
 cowarce01,Cedric Coward,https://www.basketball-reference.com/players/c/cowarce01.html,2025-26,MEM,5715120.0,3.6955906031154826,False,False,62,1598.0,15.3,-0.2,0.7,2.5,0.076,1.89,2.19
 horfoal01,Al Horford,https://www.basketball-reference.com/players/h/horfoal01.html,2025-26,GSW,5685000.0,3.676113988632175,False,False,45,969.0,14.7,1.6,0.9,2.1,0.105,2.43,2.26
-russeda01,D'Angelo Russell,https://www.basketball-reference.com/players/r/russeda01.html,2025-26,WAS,5685000.0,3.676113988632175,True,False,26,495.0,12.3,-2.3,0.0,0.0,-0.004,0.0,0.0
+russeda01,D'Angelo Russell,https://www.basketball-reference.com/players/r/russeda01.html,2025-26,WAS,5685000.0,3.676113988632175,False,False,26,495.0,12.3,-2.3,0.0,0.0,-0.004,0.0,0.0
 easonta01,Tari Eason,https://www.basketball-reference.com/players/e/easonta01.html,2025-26,HOU,5675766.0,3.67014297076568,False,False,60,1549.0,12.9,-1.6,0.2,2.9,0.091,0.54,1.72
 highsha01,Haywood Highsmith,https://www.basketball-reference.com/players/h/highsha01.html,2025-26,BRK,5616000.0,3.6314962462899376,True,False,7,91.0,17.6,3.8,0.1,0.5,0.238,0.27,0.38
 batumni01,Nicolas Batum,https://www.basketball-reference.com/players/b/batumni01.html,2025-26,LAC,5601600.0,3.6221847174532966,False,False,74,1295.0,8.4,-1.0,0.3,1.8,0.066,0.81,1.31
@@ -250,7 +250,7 @@ yabusgu01,Guerschon Yabusele,https://www.basketball-reference.com/players/y/yabu
 buzelma01,Matas Buzelis,https://www.basketball-reference.com/players/b/buzelma01.html,2025-26,CHI,5455560.0,3.5277502958350304,False,False,77,2248.0,14.8,-1.0,0.5,2.6,0.055,1.35,1.98
 essenno01,Noa Essengue,https://www.basketball-reference.com/players/e/essenno01.html,2025-26,CHI,5429520.0,3.5109119478554387,False,False,2,6.0,-11.9,-23.7,0.0,-0.1,-0.417,0.0,-0.05
 dunnkr01,Kris Dunn,https://www.basketball-reference.com/players/d/dunnkr01.html,2025-26,LAC,5426400.0,3.508894449940833,False,False,82,2230.0,11.3,-0.8,0.6,4.0,0.085,1.62,2.81
-saricda01,Dario Šarić,https://www.basketball-reference.com/players/s/saricda01.html,2025-26,DET,5426400.0,3.508894449940833,True,False,5,41.0,0.6,-9.0,-0.1,-0.1,-0.081,-0.27,-0.18
+saricda01,Dario Šarić,https://www.basketball-reference.com/players/s/saricda01.html,2025-26,DET,5426400.0,3.508894449940833,False,False,5,41.0,0.6,-9.0,-0.1,-0.1,-0.081,-0.27,-0.18
 terryda01,Dalen Terry,https://www.basketball-reference.com/players/t/terryda01.html,2025-26,NOP,5399118.0,3.491252982599081,False,False,48,551.0,11.6,-1.7,0.0,0.7,0.063,0.0,0.35
 bealbr01,Bradley Beal,https://www.basketball-reference.com/players/b/bealbr01.html,2025-26,LAC,5354000.0,3.462078152178833,False,False,6,121.0,5.1,-10.6,-0.3,-0.2,-0.07,-0.81,-0.5
 reedpa01,Paul Reed,https://www.basketball-reference.com/players/r/reedpa01.html,2025-26,DET,5335894.0,3.4503701979346513,False,False,65,901.0,24.2,5.3,1.6,4.5,0.239,4.32,4.41
@@ -263,7 +263,7 @@ drumman01,Andre Drummond,https://www.basketball-reference.com/players/d/drumman0
 richani01,Nick Richards,https://www.basketball-reference.com/players/r/richani01.html,2025-26,CHI,5000000.0,3.233169734944745,False,False,48,701.0,11.9,-6.1,-0.7,0.6,0.04,-1.89,-0.64
 wagnemo01,Moritz Wagner,https://www.basketball-reference.com/players/w/wagnemo01.html,2025-26,ORL,5000000.0,3.233169734944745,False,False,36,427.0,15.3,-2.2,0.0,0.9,0.104,0.0,0.45
 dickgr01,Gradey Dick,https://www.basketball-reference.com/players/d/dickgr01.html,2025-26,TOR,4990560.0,3.2270655104851693,False,False,76,1067.0,10.7,-3.6,-0.4,1.4,0.064,-1.08,0.16
-branhma01,Malaki Branham,https://www.basketball-reference.com/players/b/branhma01.html,2025-26,CHO,4962033.0,3.208618983879416,True,False,28,275.0,14.0,-2.2,0.0,0.4,0.064,0.0,0.2
+branhma01,Malaki Branham,https://www.basketball-reference.com/players/b/branhma01.html,2025-26,CHO,4962033.0,3.208618983879416,False,False,28,275.0,14.0,-2.2,0.0,0.4,0.064,0.0,0.2
 cartede02,Devin Carter,https://www.basketball-reference.com/players/c/cartede02.html,2025-26,SAC,4923720.0,3.183844497468428,False,False,38,700.0,13.8,-2.6,-0.1,0.2,0.012,-0.27,-0.04
 braunch01,Christian Braun,https://www.basketball-reference.com/players/b/braunch01.html,2025-26,DEN,4921797.0,3.1826010203883683,False,False,44,1399.0,12.6,-1.2,0.3,3.0,0.103,0.81,1.9
 bryanca01,Carter Bryant,https://www.basketball-reference.com/players/b/bryanca01.html,2025-26,SAS,4900320.0,3.168713263108887,False,False,71,818.0,9.9,-3.0,-0.2,1.3,0.076,-0.54,0.38
@@ -359,7 +359,7 @@ lowryky01,Kyle Lowry,https://www.basketball-reference.com/players/l/lowryky01.ht
 mcderdo01,Doug McDermott,https://www.basketball-reference.com/players/m/mcderdo01.html,2025-26,SAC,2296274.0,1.484848719988102,False,False,29,439.0,8.6,-4.4,-0.3,0.2,0.018,-0.81,-0.31
 mclaujo01,Jordan McLaughlin,https://www.basketball-reference.com/players/m/mclaujo01.html,2025-26,SAS,2296274.0,1.484848719988102,False,False,44,282.0,12.0,0.6,0.2,0.6,0.1,0.54,0.57
 nancela02,Larry Nance Jr.,https://www.basketball-reference.com/players/n/nancela02.html,2025-26,CLE,2296274.0,1.484848719988102,False,False,35,449.0,9.5,-3.4,-0.2,0.6,0.06,-0.54,0.03
-paulch01,Chris Paul,https://www.basketball-reference.com/players/p/paulch01.html,2025-26,TOR,2296274.0,1.484848719988102,True,False,16,228.0,8.1,-4.2,-0.1,0.1,0.017,-0.27,-0.08
+paulch01,Chris Paul,https://www.basketball-reference.com/players/p/paulch01.html,2025-26,TOR,2296274.0,1.484848719988102,False,False,16,228.0,8.1,-4.2,-0.1,0.1,0.017,-0.27,-0.08
 westbru01,Russell Westbrook,https://www.basketball-reference.com/players/w/westbru01.html,2025-26,SAC,2296274.0,1.484848719988102,False,False,64,1853.0,15.1,-0.4,0.7,0.4,0.009,1.89,1.14
 paytoga02,Gary Payton II,https://www.basketball-reference.com/players/p/paytoga02.html,2025-26,GSW,2296274.0,1.484848719988102,False,False,73,1142.0,18.3,1.9,1.1,3.5,0.149,2.97,3.24
 plumlma01,Mason Plumlee,https://www.basketball-reference.com/players/p/plumlma01.html,2025-26,OKC,2296274.0,1.484848719988102,False,False,20,172.0,13.0,0.5,0.1,0.5,0.146,0.27,0.38
@@ -376,7 +376,7 @@ antetth01,Thanasis Antetokounmpo,https://www.basketball-reference.com/players/a/
 anthoco01,Cole Anthony,https://www.basketball-reference.com/players/a/anthoco01.html,2025-26,PHO,2296274.0,1.484848719988102,True,False,35,527.0,10.7,-4.7,-0.4,-0.5,-0.042,-1.08,-0.79
 baglema01,Marvin Bagley III,https://www.basketball-reference.com/players/b/baglema01.html,2025-26,DAL,2296274.0,1.484848719988102,False,False,60,1201.0,20.2,0.8,0.8,3.8,0.15,2.16,2.98
 biyombi01,Bismack Biyombo,https://www.basketball-reference.com/players/b/biyombi01.html,2025-26,SAS,2296274.0,1.484848719988102,False,False,25,141.0,4.5,-5.8,-0.1,0.2,0.057,-0.27,-0.04
-bouchch01,Chris Boucher,https://www.basketball-reference.com/players/b/bouchch01.html,2025-26,UTA,2296274.0,1.484848719988102,True,False,9,94.0,7.7,-3.1,0.0,0.1,0.064,0.0,0.05
+bouchch01,Chris Boucher,https://www.basketball-reference.com/players/b/bouchch01.html,2025-26,UTA,2296274.0,1.484848719988102,False,False,9,94.0,7.7,-3.1,0.0,0.1,0.064,0.0,0.05
 brownbr01,Bruce Brown,https://www.basketball-reference.com/players/b/brownbr01.html,2025-26,DEN,2296274.0,1.484848719988102,False,False,82,1998.0,10.8,-2.4,-0.2,2.9,0.071,-0.54,1.18
 bryanth01,Thomas Bryant,https://www.basketball-reference.com/players/b/bryanth01.html,2025-26,CLE,2296274.0,1.484848719988102,False,False,60,732.0,17.2,0.1,0.4,2.3,0.153,1.08,1.69
 coffeam01,Amir Coffey,https://www.basketball-reference.com/players/c/coffeam01.html,2025-26,PHO,2296274.0,1.484848719988102,False,False,46,490.0,10.2,-3.1,-0.1,0.8,0.083,-0.27,0.26
@@ -384,7 +384,7 @@ eubandr01,Drew Eubanks,https://www.basketball-reference.com/players/e/eubandr01.
 exumda01,Danté Exum,https://www.basketball-reference.com/players/e/exumda01.html,2025-26,WAS,2296274.0,1.484848719988102,False,True,0,0.0,,,0.0,0.0,,0.0,0.0
 gillan01,Anthony Gill,https://www.basketball-reference.com/players/g/gillan01.html,2025-26,WAS,2296274.0,1.484848719988102,False,False,55,951.0,13.4,-2.6,-0.2,1.7,0.087,-0.54,0.58
 gilleco01,Collin Gillespie,https://www.basketball-reference.com/players/g/gilleco01.html,2025-26,PHO,2296274.0,1.484848719988102,False,False,80,2282.0,15.3,2.5,2.6,6.2,0.13,7.02,6.61
-gordoer01,Eric Gordon,https://www.basketball-reference.com/players/g/gordoer01.html,2025-26,MEM,2296274.0,1.484848719988102,True,False,6,74.0,14.4,2.4,0.1,0.2,0.116,0.27,0.24
+gordoer01,Eric Gordon,https://www.basketball-reference.com/players/g/gordoer01.html,2025-26,MEM,2296274.0,1.484848719988102,False,False,6,74.0,14.4,2.4,0.1,0.2,0.116,0.27,0.24
 greenja02,Javonte Green,https://www.basketball-reference.com/players/g/greenja02.html,2025-26,DET,2296274.0,1.484848719988102,False,False,82,1446.0,14.1,2.1,1.5,4.7,0.156,4.05,4.38
 greenje02,Jeff Green,https://www.basketball-reference.com/players/g/greenje02.html,2025-26,HOU,2296274.0,1.484848719988102,False,False,30,175.0,8.5,-5.6,-0.2,0.2,0.054,-0.54,-0.17
 hardati02,Tim Hardaway Jr.,https://www.basketball-reference.com/players/h/hardati02.html,2025-26,DEN,2296274.0,1.484848719988102,False,False,80,2127.0,13.5,-0.7,0.7,4.4,0.1,1.89,3.14
@@ -396,10 +396,10 @@ davisjd01,JD Davison,https://www.basketball-reference.com/players/d/davisjd01.ht
 jordade01,DeAndre Jordan,https://www.basketball-reference.com/players/j/jordade01.html,2025-26,NOP,2269880.0,1.4677814635912756,False,False,12,199.0,15.7,-0.2,0.1,0.6,0.134,0.27,0.44
 wilsoja03,Jalen Wilson,https://www.basketball-reference.com/players/w/wilsoja03.html,2025-26,BRK,2221677.0,1.436611767444567,False,False,54,859.0,8.7,-5.6,-0.8,0.2,0.012,-2.16,-0.98
 walshjo01,Jordan Walsh,https://www.basketball-reference.com/players/w/walshjo01.html,2025-26,BOS,2221677.0,1.436611767444567,False,False,68,1212.0,13.1,0.2,0.7,3.8,0.15,1.89,2.84
-tysonhu01,Hunter Tyson,https://www.basketball-reference.com/players/t/tysonhu01.html,2025-26,BRK,2221677.0,1.436611767444567,True,False,21,162.0,6.4,-6.8,-0.2,0.0,-0.013,-0.54,-0.27
+tysonhu01,Hunter Tyson,https://www.basketball-reference.com/players/t/tysonhu01.html,2025-26,BRK,2221677.0,1.436611767444567,False,False,21,162.0,6.4,-6.8,-0.2,0.0,-0.013,-0.54,-0.27
 santogu01,Gui Santos,https://www.basketball-reference.com/players/s/santogu01.html,2025-26,GSW,2221677.0,1.436611767444567,False,False,68,1395.0,14.2,-0.6,0.5,2.7,0.094,1.35,2.03
 ruperra01,Rayan Rupert,https://www.basketball-reference.com/players/r/ruperra01.html,2025-26,POR,2221677.0,1.436611767444567,False,False,64,1072.0,8.2,-5.1,-0.8,0.6,0.026,-2.16,-0.78
-reathdu01,Duop Reath,https://www.basketball-reference.com/players/r/reathdu01.html,2025-26,ATL,2221677.0,1.436611767444567,True,False,32,258.0,10.6,-0.9,0.1,0.6,0.103,0.27,0.44
+reathdu01,Duop Reath,https://www.basketball-reference.com/players/r/reathdu01.html,2025-26,ATL,2221677.0,1.436611767444567,False,False,32,258.0,10.6,-0.9,0.1,0.6,0.103,0.27,0.44
 portecr01,Craig Porter Jr.,https://www.basketball-reference.com/players/p/portecr01.html,2025-26,CLE,2221677.0,1.436611767444567,False,False,64,1148.0,13.7,2.0,1.2,2.8,0.116,3.24,3.02
 pickeja02,Jalen Pickett,https://www.basketball-reference.com/players/p/pickeja02.html,2025-26,DEN,2221677.0,1.436611767444567,False,False,50,807.0,10.3,-2.3,-0.1,1.0,0.059,-0.27,0.36
 phillju01,Julian Phillips,https://www.basketball-reference.com/players/p/phillju01.html,2025-26,MIN,2221677.0,1.436611767444567,False,False,48,428.0,9.3,-3.6,-0.2,0.5,0.051,-0.54,-0.02
@@ -415,7 +415,7 @@ kolekty01,Tyler Kolek,https://www.basketball-reference.com/players/k/kolekty01.h
 clarkja02,Jaylen Clark,https://www.basketball-reference.com/players/c/clarkja02.html,2025-26,MIN,2191897.0,1.4173550085032365,False,False,68,888.0,10.3,-2.4,-0.1,1.7,0.09,-0.27,0.72
 achiupr01,Precious Achiuwa,https://www.basketball-reference.com/players/a/achiupr01.html,2025-26,SAC,2111516.0,1.3653779252103178,False,False,73,1745.0,16.2,-1.6,0.2,2.9,0.081,0.54,1.72
 edwarju01,Justin Edwards,https://www.basketball-reference.com/players/e/edwarju01.html,2025-26,PHI,2048494.0,1.3246257606031802,False,False,64,977.0,12.1,-1.3,0.2,1.7,0.086,0.54,1.12
-hayesni01,Nigel Hayes-Davis,https://www.basketball-reference.com/players/h/hayesni01.html,2025-26,MIL,2048494.0,1.3246257606031802,True,False,27,195.0,4.2,-7.3,-0.3,-0.1,-0.023,-0.81,-0.46
+hayesni01,Nigel Hayes-Davis,https://www.basketball-reference.com/players/h/hayesni01.html,2025-26,MIL,2048494.0,1.3246257606031802,False,False,27,195.0,4.2,-7.3,-0.3,-0.1,-0.023,-0.81,-0.46
 nfalyda01,N'Faly Dante,https://www.basketball-reference.com/players/n/nfalyda01.html,2025-26,ATL,2048494.0,1.3246257606031802,False,False,4,15.0,12.4,-4.5,0.0,0.0,0.051,0.0,0.0
 klintbo01,Bobi Klintman,https://www.basketball-reference.com/players/k/klintbo01.html,2025-26,DET,1955377.0,1.2644131473614102,False,False,12,71.0,4.5,-8.7,-0.1,-0.1,-0.043,-0.27,-0.18
 wellsja01,Jaylen Wells,https://www.basketball-reference.com/players/w/wellsja01.html,2025-26,MEM,1955377.0,1.2644131473614102,False,False,69,1821.0,11.5,-3.1,-0.5,1.6,0.042,-1.35,0.12

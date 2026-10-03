@@ -1,6 +1,6 @@
 # Python API Reference & CLI Documentation
 
-`boardman-gets-paid` exposes a typed Python API for contract valuation, CBA compliance checking, and trade simulation.
+`boardman-gets-paid` exposes a typed Python API for contract valuation, CBA compliance checking, sensitivity analysis, and trade simulation.
 
 ---
 
@@ -13,6 +13,8 @@ from boardman import (
     calculate_roster_valuation,
     calculate_roster_delta,
     build_league_surplus_board,
+    analyze_trade_sensitivity,
+    calculate_ranking_elasticity,
     TradeEvaluation,
     PlayerValuation,
     TeamValuation,
@@ -53,14 +55,15 @@ Simulates a transaction between two franchises, checking 2023 CBA statutory lega
 #### Example:
 ```python
 trade = evaluate_trade(
-    team_a="SAS",
-    send_a=["Harrison Barnes", "Kelly Olynyk"],
-    team_b="BOS",
-    send_b=["Derrick White"]
+    team_a="CLE",
+    send_a=["Jarrett Allen"],
+    team_b="DET",
+    send_b=["Isaiah Stewart"]
 )
 print(trade.summary())
 print(f"Is Legal: {trade.is_legal}")
-print(f"SAS Delta NSV: ${trade.delta_a.delta_nsv:+,.0f}")
+print(f"CLE Delta NSV: ${trade.delta_a.delta_nsv:+,.0f}")
+print(f"Friction Relief: ${trade.delta_a.friction_relief:+,.0f}")
 ```
 
 ---
@@ -138,7 +141,38 @@ Generates a complete DataFrame of all active NBA contracts ranked by Net Surplus
 
 ---
 
-## 4. CBA Statutory Rules Functions
+## 4. Parameter Sensitivity & Elasticity Functions
+
+### `analyze_trade_sensitivity`
+```python
+def analyze_trade_sensitivity(
+    team_a: str = "CLE",
+    send_a: list[str] | None = None,
+    team_b: str = "DET",
+    send_b: list[str] | None = None,
+    lambda_scales: list[float] | None = None,
+    cost_per_win_range: list[float] | None = None,
+    df_players: pd.DataFrame | None = None,
+    df_teams: pd.DataFrame | None = None,
+) -> pd.DataFrame
+```
+Evaluates a trade's surplus swing across a 2D parameter grid of $\lambda$ scale ($0.0\times$ to $2.0\times$) and Cost-Per-Win ($C_w$), pinpointing the exact tipping point where apron friction inverts the transaction decision.
+
+---
+
+### `calculate_ranking_elasticity`
+```python
+def calculate_ranking_elasticity(
+    df_players: pd.DataFrame | None = None,
+    df_teams: pd.DataFrame | None = None,
+    cost_per_win: float = DEFAULT_COST_PER_WIN,
+) -> pd.DataFrame
+```
+Measures contract ranking displacements between linear Gross Surplus ($GSV$) and apron-aware Net Surplus ($NSV$), highlighting the largest downward shifts caused by the Apron Friction Tax on high-payroll franchises.
+
+---
+
+## 5. CBA Statutory Rules Functions
 
 ### `check_trade_compliance`
 ```python
@@ -153,11 +187,11 @@ def check_trade_compliance(
     second_apron: float = SECOND_APRON_2025_26,
 ) -> TradeComplianceCheck
 ```
-Validates matching bounds, First Apron hard-caps, Second Apron aggregation prohibitions, and cash limits for a single franchise.
+Validates matching bounds (escalated under CBA Art. VII Sec. 6(j)), First Apron hard-caps, Second Apron aggregation prohibitions, and cash limits for a single franchise.
 
 ---
 
-## 5. Command-Line Interface (CLI) Usage
+## 6. Command-Line Interface (CLI) Usage
 
 ### Ingest & Rebuild Datasets
 ```bash

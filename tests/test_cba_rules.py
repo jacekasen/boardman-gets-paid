@@ -7,26 +7,29 @@ from boardman.cba_rules import (
     check_trade_compliance,
 )
 from boardman.config import (
+    BAND_1_THRESHOLD_2025_26,
+    BAND_2_THRESHOLD_2025_26,
     FIRST_APRON_2025_26,
     SECOND_APRON_2025_26,
+    TRADE_BUFFER_ALLOWANCE_2025_26,
 )
 
 
 def test_non_taxpayer_matching_bands():
-    """Verify statutory matching bands for teams below the First Apron."""
+    """Verify statutory matching bands for teams below the First Apron (indexed to 2025-26 cap growth)."""
     sub_tax_payroll = 140_000_000.0
 
-    # Band 1: Outgoing <= $7.5M -> 200% + $250k
+    # Band 1: Outgoing <= $8.53M -> 200% + $284k
     max_in_5m = calculate_max_incoming_salary(5_000_000.0, sub_tax_payroll)
-    assert max_in_5m == pytest.approx((2.0 * 5_000_000.0) + 250_000.0)
+    assert max_in_5m == pytest.approx((2.0 * 5_000_000.0) + TRADE_BUFFER_ALLOWANCE_2025_26)
 
-    # Band 2: $7.5M < Outgoing <= $29.0M -> Outgoing + $7.5M
+    # Band 2: $8.53M < Outgoing <= $32.97M -> Outgoing + $8.53M
     max_in_20m = calculate_max_incoming_salary(20_000_000.0, sub_tax_payroll)
-    assert max_in_20m == pytest.approx(20_000_000.0 + 7_500_000.0)
+    assert max_in_20m == pytest.approx(20_000_000.0 + BAND_1_THRESHOLD_2025_26)
 
-    # Band 3: Outgoing > $29.0M -> 125% + $250k
+    # Band 3: Outgoing > $32.97M -> 125% + $284k
     max_in_35m = calculate_max_incoming_salary(35_000_000.0, sub_tax_payroll)
-    assert max_in_35m == pytest.approx((1.25 * 35_000_000.0) + 250_000.0)
+    assert max_in_35m == pytest.approx((1.25 * 35_000_000.0) + TRADE_BUFFER_ALLOWANCE_2025_26)
 
 
 def test_first_apron_hard_match():

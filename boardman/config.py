@@ -31,12 +31,30 @@ FIRST_APRON_2025_26 = 195_945_000
 SECOND_APRON_2025_26 = 207_824_000
 MINIMUM_SALARY_2025_26 = 2_100_000
 
+# 2023 CBA Article VII, Section 6(j) Trade Band Escalation:
+# The statutory trade bands are indexed to Salary Cap growth since 2023-24 ($136,021,000).
+SALARY_CAP_2023_24_BASE = 136_021_000
+CBA_CAP_INFLATION_2025_26 = SALARY_CAP_2025_26 / SALARY_CAP_2023_24_BASE  # ~1.136934
+
+# 2025-26 Escalated Matching Thresholds (Article VII, Section 6(j)(1)-(3))
+BAND_1_THRESHOLD_2025_26 = round(7_500_000 * CBA_CAP_INFLATION_2025_26)      # $8,527,011
+BAND_2_THRESHOLD_2025_26 = round(29_000_000 * CBA_CAP_INFLATION_2025_26)     # $32,971,107
+TRADE_BUFFER_ALLOWANCE_2025_26 = round(250_000 * CBA_CAP_INFLATION_2025_26) # $284,234
+
 # Public Metric Calibration Constants
 VORP_TO_WAR_MULTIPLIER = 2.70
 REPLACEMENT_LEVEL_BPM = -2.0
 
 # Apron Friction Multipliers lambda(T)
-# Quantifies the roster immobility and transactional penalty drag
+# Empirically calibrated against the tangible opportunity costs of crossing CBA thresholds:
+# - Bracket 1 (Tax, lambda=0.15): Cash tax burden ($1.50-$2.50/dollar) without operational bans.
+# - Bracket 2 (1st Apron, lambda=0.35): Hard 100% salary matching + forfeiture of Bi-Annual Exception (~$4.7M asset).
+# - Bracket 3 (2nd Apron, lambda=0.70): Calibrated to equal the empirical sum of:
+#     1. Frozen 1st-round draft pick 7 years out & demoted to pick 30: ~$7.3M expected surplus loss.
+#     2. Forfeiture of Taxpayer Mid-Level Exception: ~$5.4M opportunity cost.
+#     3. Zero salary aggregation liquidity discount: 10%-15% discount on high-dollar contracts (~$7M-$10M).
+#     4. Incremental cash tax penalty ($3.75-$4.75+/dollar).
+#     Total annualized drag on a 2nd Apron contender is ~$25M-$32M, which lambda=0.70 reproduces on CLE ($31.1M).
 FRICTION_LAMBDA = {
     0: 0.00,  # Below Luxury Tax: Full flexibility, no tax penalty
     1: 0.15,  # Tax to First Apron: Cash tax penalties, Bi-annual exception preserved

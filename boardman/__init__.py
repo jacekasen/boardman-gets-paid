@@ -1,5 +1,9 @@
 """Board Man Gets Paid: Modern NBA CBA Roster Constraint & Apron Friction Valuation Engine."""
 
+from boardman.sensitivity import (
+    analyze_trade_sensitivity,
+    calculate_ranking_elasticity,
+)
 from boardman.trade_engine import TradeEvaluation, evaluate_trade
 from boardman.valuation import (
     PlayerValuation,
@@ -19,6 +23,8 @@ __all__ = [
     "calculate_roster_valuation",
     "calculate_roster_delta",
     "build_league_surplus_board",
+    "analyze_trade_sensitivity",
+    "calculate_ranking_elasticity",
     "PlayerValuation",
     "TeamValuation",
     "RosterDelta",

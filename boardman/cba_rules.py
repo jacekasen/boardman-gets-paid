@@ -7,10 +7,13 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from boardman.config import (
+    BAND_1_THRESHOLD_2025_26,
+    BAND_2_THRESHOLD_2025_26,
     FIRST_APRON_2025_26,
     LUXURY_TAX_2025_26,
     SALARY_CAP_2025_26,
     SECOND_APRON_2025_26,
+    TRADE_BUFFER_ALLOWANCE_2025_26,
     get_team_bracket,
 )
 
@@ -57,13 +60,13 @@ def calculate_max_incoming_salary(
     if current_payroll >= first_apron:
         return salary_out
 
-    # Non-taxpayer matching bands
-    if salary_out <= 7_500_000.0:
-        raw_max = (2.00 * salary_out) + 250_000.0
-    elif salary_out <= 29_000_000.0:
-        raw_max = salary_out + 7_500_000.0
+    # 2023 CBA Article VII, Section 6(j) Non-taxpayer matching bands (indexed to 2025-26 cap growth)
+    if salary_out <= BAND_1_THRESHOLD_2025_26:
+        raw_max = (2.00 * salary_out) + TRADE_BUFFER_ALLOWANCE_2025_26
+    elif salary_out <= BAND_2_THRESHOLD_2025_26:
+        raw_max = salary_out + BAND_1_THRESHOLD_2025_26
     else:
-        raw_max = (1.25 * salary_out) + 250_000.0
+        raw_max = (1.25 * salary_out) + TRADE_BUFFER_ALLOWANCE_2025_26
 
     # Hard-cap clamp: If taking back raw_max would push total team payroll over the First Apron,
     # the maximum incoming salary is capped at the First Apron line

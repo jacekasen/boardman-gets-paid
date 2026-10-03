@@ -15,27 +15,33 @@ This document details the statutory trade rules enforced by [`boardman/cba_rules
 
 ---
 
-## 2. Non-Taxpayer Matching Bands (Sub-Tax Teams)
+## 2. Non-Taxpayer Matching Bands (Sub-Tax Teams) & Statutory Escalation
 
-For teams whose post-trade payroll remains strictly below the **First Apron**, allowable incoming salary ($S_{\text{in}}$) is calculated based on total outgoing salary ($S_{\text{out}}$):
+Under **Article VII, Section 6(j) of the 2023 CBA**, trade matching band thresholds and minimum cash buffers do not remain static. Instead, they escalate annually in direct proportion to the growth of the League Salary Cap from the 2023–24 baseline:
 
-### Band 1: Outgoing Salary $\le \$7,500,000$
-$$S_{\text{in}} \le (200\% \times S_{\text{out}}) + \$250,000$$
+$$\text{Escalation Factor} = \frac{\text{Salary Cap}_{2025\text{--}26}}{\text{Salary Cap}_{2023\text{--}24}} = \frac{\$154,647,000}{\$136,021,000} \approx 1.136934298$$
+
+For teams whose post-trade payroll remains strictly below the **First Apron**, allowable incoming salary ($S_{\text{in}}$) is calculated based on total outgoing salary ($S_{\text{out}}$) using these statutory escalated bands:
+
+### Band 1: Outgoing Salary $\le \$8,527,011$
+$$S_{\text{in}} \le (200\% \times S_{\text{out}}) + \$284,234$$
+*(Escalated from the baseline $\$7,500,000$ and $\$250,000$ buffer).*
 
 *Example:* A team trading a $\$4,000,000$ player can receive up to:
-$$(2.00 \times 4.0\text{M}) + 0.25\text{M} = \$8,250,000$$
+$$(2.00 \times 4.0\text{M}) + 0.284\text{M} = \$8,284,234$$
 
-### Band 2: $\$7,500,000 < \text{Outgoing Salary} \le \$29,000,000$
-$$S_{\text{in}} \le S_{\text{out}} + \$7,500,000$$
+### Band 2: $\$8,527,011 < \text{Outgoing Salary} \le \$32,971,107$
+$$S_{\text{in}} \le S_{\text{out}} + \$8,527,011$$
+*(Escalated from the baseline $\$7,500,000$ and $\$29,000,000$ threshold).*
 
 *Example:* A team trading a $\$15,000,000$ player can receive up to:
-$$15.0\text{M} + 7.5\text{M} = \$22,500,000$$
+$$15.0\text{M} + 8.527\text{M} = \$23,527,011$$
 
-### Band 3: Outgoing Salary $> \$29,000,000$
-$$S_{\text{in}} \le (125\% \times S_{\text{out}}) + \$250,000$$
+### Band 3: Outgoing Salary $> \$32,971,107$
+$$S_{\text{in}} \le (125\% \times S_{\text{out}}) + \$284,234$$
 
-*Example:* A team trading a $\$32,000,000$ player can receive up to:
-$$(1.25 \times 32.0\text{M}) + 0.25\text{M} = \$40,250,000$$
+*Example:* A team trading a $\$35,000,000$ player can receive up to:
+$$(1.25 \times 35.0\text{M}) + 0.284\text{M} = \$44,034,234$$
 
 ---
 
