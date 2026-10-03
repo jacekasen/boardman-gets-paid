@@ -1,4 +1,4 @@
-"""Configuration, directory paths, and 2025-26 statutory CBA financial thresholds."""
+"""Configuration, directory paths, team aliases, and 2025-26 statutory CBA financial thresholds."""
 
 from pathlib import Path
 
@@ -9,7 +9,7 @@ DATA_DIR = REPO_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 
-# Source data path in local nba monorepo
+# Source data paths in local nba monorepo
 NBA_SOURCE_DIR = Path.home() / "dev" / "nba" / "data"
 SOURCE_PLAYER_SALARIES = NBA_SOURCE_DIR / "modeling" / "player_salaries.csv"
 SOURCE_TEAM_SALARIES = NBA_SOURCE_DIR / "modeling" / "team_season_salaries.csv"
@@ -43,3 +43,60 @@ FRICTION_LAMBDA = {
     2: 0.35,  # First to Second Apron: Hard salary matching, loss of bi-annual exception
     3: 0.70,  # Above Second Apron: Frozen draft picks, no salary aggregation, no cash
 }
+
+# Team code normalization (Basketball-Reference codes <-> Standard NBA codes)
+TEAM_ALIASES = {
+    "BKN": "BRK",
+    "CHA": "CHO",
+    "PHX": "PHO",
+}
+
+CANONICAL_TEAM_NAMES = {
+    "ATL": "Atlanta Hawks",
+    "BOS": "Boston Celtics",
+    "BRK": "Brooklyn Nets",
+    "CHO": "Charlotte Hornets",
+    "CHI": "Chicago Bulls",
+    "CLE": "Cleveland Cavaliers",
+    "DAL": "Dallas Mavericks",
+    "DEN": "Denver Nuggets",
+    "DET": "Detroit Pistons",
+    "GSW": "Golden State Warriors",
+    "HOU": "Houston Rockets",
+    "IND": "Indiana Pacers",
+    "LAC": "LA Clippers",
+    "LAL": "Los Angeles Lakers",
+    "MEM": "Memphis Grizzlies",
+    "MIA": "Miami Heat",
+    "MIL": "Milwaukee Bucks",
+    "MIN": "Minnesota Timberwolves",
+    "NOP": "New Orleans Pelicans",
+    "NYK": "New York Knicks",
+    "OKC": "Oklahoma City Thunder",
+    "ORL": "Orlando Magic",
+    "PHI": "Philadelphia 76ers",
+    "PHO": "Phoenix Suns",
+    "POR": "Portland Trail Blazers",
+    "SAC": "Sacramento Kings",
+    "SAS": "San Antonio Spurs",
+    "TOR": "Toronto Raptors",
+    "UTA": "Utah Jazz",
+    "WAS": "Washington Wizards",
+}
+
+
+def normalize_team(team: str) -> str:
+    """Normalize input team string to internal 3-letter abbreviation."""
+    cleaned = str(team).strip().upper()
+    return TEAM_ALIASES.get(cleaned, cleaned)
+
+
+def get_team_bracket(total_payroll: float) -> tuple[int, float]:
+    """Return the apron bracket (0, 1, 2, 3) and friction lambda for a given payroll."""
+    if total_payroll >= SECOND_APRON_2025_26:
+        return 3, FRICTION_LAMBDA[3]
+    if total_payroll >= FIRST_APRON_2025_26:
+        return 2, FRICTION_LAMBDA[2]
+    if total_payroll >= LUXURY_TAX_2025_26:
+        return 1, FRICTION_LAMBDA[1]
+    return 0, FRICTION_LAMBDA[0]
