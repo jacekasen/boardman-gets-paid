@@ -100,6 +100,15 @@ def build_master_players(
     # Team code normalization
     merged["team"] = merged["team"].apply(normalize_team)
 
+    def clean_player_name(val: Any) -> str:
+        s = str(val).strip()
+        try:
+            return s.encode("latin1").decode("utf-8")
+        except Exception:
+            return s
+
+    merged["player_name"] = merged["player_name"].apply(clean_player_name)
+
     # Impute missing stat metrics for injured / zero-minute players
     merged["is_injured_zero_minutes"] = merged["minutes"].isna() | (merged["minutes"] <= 0)
     merged["games"] = merged["games"].fillna(0).astype(int)
