@@ -1,34 +1,21 @@
-"""Frontend bridge checks: preserve engine output and reject invalid selections."""
-import pytest
+"""Frontend bridge checks: snapshot data integrity and serialization."""
 
-from boardman.web_api import snapshot, trade
+import json
+from boardman.web_api import snapshot
 
 
 def test_snapshot_includes_all_teams_and_finite_values():
-    import json
     data = snapshot()
     assert len(data["teams"]) == 30
     assert len(data["players"]) > 400
     assert any(p["is_dead_money"] for p in data["players"])
-    json.dumps(data, allow_nan=False)
+    serialized = json.dumps(data, allow_nan=False)
+    assert len(serialized) > 10_000
 
 
-def test_flagship_trade_uses_projected_baseline():
-    result = trade(dict(team_a="CLE", team_b="DAL", send_a=["Max Strus"], send_b=["Caleb Martin"]))
-    assert result["is_legal"] is True
-    assert result["delta_a"]["delta_nsv"] == pytest.approx(15_288_576.43)
-    assert result["delta_a"]["post_bracket"] == 2
-
-
-@pytest.mark.parametrize("changes", [
-    {"team_a": "BAD"},
-    {"send_a": ["Max Strus", "Max Strus"]},
-    {"send_a": "Max Strus"},
-    {"send_a": [], "send_b": []},
-    {"team_b": "CLE"},
-])
-def test_invalid_trade_inputs(changes):
-    payload = dict(team_a="CLE", team_b="DAL", send_a=["Max Strus"], send_b=["Caleb Martin"])
-    payload.update(changes)
-    with pytest.raises(ValueError):
-        trade(payload)
+def test_snapshot_metrics():
+    data = snapshot()
+    assert data["season"] == "2025-26"
+    assert data["costPerWin"] > 4_000_000
+    assert "thresholds" in data
+    assert data["thresholds"]["cap"] == 154_647_000

@@ -71,8 +71,40 @@ def collapse_player_stats(df_stats: pd.DataFrame) -> pd.DataFrame:
     return collapsed
 
 
+def extract_latest_team_map(df_season_stats: pd.DataFrame) -> dict[str, str]:
+    """Map each player_id to the franchise abbreviation of their latest regular-season stint.
+    Basketball-Reference lists multi-team stints chronologically, with the latest stint last.
+    """
+    latest_teams: dict[str, str] = {}
+    for pid, group in df_season_stats.groupby("player_id"):
+        stints = group[~group["team_name_abbr"].astype(str).str.match(NTM_PATTERN)]
+        if not stints.empty:
+            latest_teams[str(pid)] = normalize_team(stints.iloc[-1]["team_name_abbr"])
+        else:
+            latest_teams[str(pid)] = normalize_team(group.iloc[0]["team_name_abbr"])
+    return latest_teams
+
+
+def compute_player_experience_map(source_path: Path = SOURCE_PLAYER_STATS_RAW) -> dict[str, int]:
+    """Compute number of distinct NBA seasons logged by each player."""
+    if not source_path.exists():
+        return {}
+    try:
+        df_stats = pd.read_csv(source_path)
+        p_seasons = df_stats.groupby("player_url")["year_id"].nunique().to_dict()
+        exp_map: dict[str, int] = {}
+        for url, n in p_seasons.items():
+            pid = extract_player_id(url)
+            if pid:
+                exp_map[pid] = int(n)
+        return exp_map
+    except Exception as e:
+        logger.warning("Could not compute experience map: %s", e)
+        return {}
+
+
 def load_raw_stats(source_path: Path, season: str = DEFAULT_SEASON) -> pd.DataFrame:
-    """Load raw season stats and prepare player_id."""
+    """Load raw season stats, record latest stint team, and prepare player_id."""
     if not source_path.exists():
         raise FileNotFoundError(f"Missing raw stats file at {source_path}")
 
@@ -80,7 +112,11 @@ def load_raw_stats(source_path: Path, season: str = DEFAULT_SEASON) -> pd.DataFr
     season_stats = df[df["year_id"] == season].copy()
     season_stats["player_id"] = season_stats["player_url"].apply(extract_player_id)
     season_stats = season_stats[season_stats["player_id"].notna()].copy()
-    return collapse_player_stats(season_stats)
+
+    latest_teams = extract_latest_team_map(season_stats)
+    collapsed = collapse_player_stats(season_stats)
+    collapsed["latest_stat_team"] = collapsed["player_id"].map(latest_teams)
+    return collapsed
 
 
 def compute_multiseason_war_prior(
@@ -120,12 +156,16 @@ def build_master_players(
     df_stats: pd.DataFrame,
     season: str = DEFAULT_SEASON,
     df_all_salaries: pd.DataFrame | None = None,
+    exp_map: dict[str, int] | None = None,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Join salary cap sheets with public box-score impact metrics (VORP, WS, BPM) and multi-season priors."""
     logger.info("Joining %d salary records with %d player stat records...", len(df_salaries), len(df_stats))
 
     # Keep relevant stat columns
     stat_cols = ["player_id", "team_name_abbr", "games", "mp", "per", "bpm", "vorp", "ws", "ws_per_48"]
+    if "latest_stat_team" in df_stats.columns:
+        stat_cols.append("latest_stat_team")
+
     stats_subset = df_stats[stat_cols].rename(columns={"mp": "minutes", "team_name_abbr": "stats_team"})
 
     # Merge salaries with stats
@@ -170,32 +210,38 @@ def build_master_players(
             logger.warning("Could not load prior season salaries: %s", e)
 
     def check_dead_money(row: pd.Series) -> bool:
-        pid = row["player_id"]
+        pid = str(row["player_id"])
         # If a player has only one salary row, it is their active contracted team, NEVER dead money
         if pid not in multi_salary_pids:
             return False
-        st = row.get("stats_team")
-        if pd.notna(st) and str(st).strip() and str(st) != "nan":
-            st_clean = str(st).strip()
-            t_clean = str(row["team"]).strip()
-            if st_clean == t_clean or re.match(r"^\d+TM$", st_clean):
-                return False
-            return True
-        # If no current-season stats available (e.g. injured star like Damian Lillard):
-        # The prior-season franchise that waived & stretched the contract is the DEAD MONEY row.
-        # The newly joined franchise is their ACTIVE roster contract.
-        prior_teams = prior_teams_map.get(str(pid), set())
+
         t_clean = str(row["team"]).strip()
+        latest_team = row.get("latest_stat_team")
+
+        # If player has current season stats, only their latest regular-season stint team is active!
+        if pd.notna(latest_team) and str(latest_team).strip() and str(latest_team) != "nan":
+            return t_clean != str(latest_team).strip()
+
+        # If no current-season stats available (e.g. injured star like Damian Lillard):
+        # The prior-season franchise they actively played for is their active contract;
+        # older stretched / waived obligations are DEAD MONEY rows.
+        prior_teams = prior_teams_map.get(pid, set())
         if prior_teams:
-            if t_clean in prior_teams:
-                return True
-            return False
+            return t_clean not in prior_teams
+
         # Fallback to secondary smaller contract allocation if prior team unknown
         player_rows = df_salaries[df_salaries["player_id"] == pid]
         max_salary = player_rows["salary"].max()
         return bool(row["salary"] < max_salary)
 
     merged["is_dead_money"] = merged.apply(check_dead_money, axis=1)
+
+    # Invariant enforcement: strictly at most ONE active roster contract per player
+    active_mask = ~merged["is_dead_money"]
+    duplicate_active_pids = set(merged.loc[active_mask, "player_id"].value_counts()[lambda x: x > 1].index)
+    for d_pid in duplicate_active_pids:
+        indices = merged[active_mask & (merged["player_id"] == d_pid)].sort_values("salary", ascending=False).index
+        merged.loc[indices[1:], "is_dead_money"] = True
 
     # Compute Wins Above Replacement & Blended WAR
     merged["war_vorp"] = (merged["vorp"] * VORP_TO_WAR_MULTIPLIER).round(2)
@@ -218,24 +264,56 @@ def build_master_players(
 
     merged["war_projected"] = merged.apply(calc_projected_war, axis=1)
 
-    # Ensure salary numeric
+    # Strict enforcement: all dead money records MUST have 0.0 WAR across all proxies
+    merged.loc[merged["is_dead_money"], ["war_vorp", "war_blend", "war_projected"]] = 0.0
+
+    # Explicit handling of known vs missing salaries
+    merged["is_salary_known"] = merged["salary"].notna() & (merged["salary"] > 0)
     merged["salary"] = merged["salary"].fillna(0.0).astype(float)
     merged["cap_share"] = merged["cap_share"].fillna(0.0).astype(float)
 
+    # Compute experience and categorize contract tiers
+    if exp_map is None:
+        exp_map = compute_player_experience_map(SOURCE_PLAYER_STATS_RAW)
+
+    def assign_contract_tier(row: pd.Series) -> str:
+        if not row["is_salary_known"]:
+            return "Two-Way / Unknown"
+        sal = float(row["salary"])
+        pid = str(row["player_id"])
+        exp = exp_map.get(pid, 5) if exp_map else 5
+        if sal >= 35_000_000:
+            return "Max / Supermax"
+        if exp <= 4 and sal <= 16_000_000:
+            return "Rookie Scale"
+        if sal >= 8_000_000:
+            return "Mid-Level"
+        return "Minimum / Rotation"
+
+    merged["contract_tier"] = merged.apply(assign_contract_tier, axis=1)
+
     # Calculate unconstrained veteran cost per win ($/WAR)
-    known_positive = merged[(merged["salary"] >= 5_000_000) & (merged["war_vorp"] > 0)]
+    known_positive = merged[
+        (merged["salary"] >= 5_000_000)
+        & (merged["war_vorp"] > 0)
+        & (~merged["is_dead_money"])
+        & (merged["is_salary_known"])
+    ]
     if not known_positive.empty and known_positive["war_vorp"].sum() > 0:
         unconstrained_cost_per_win = float(known_positive["salary"].sum() / known_positive["war_vorp"].sum())
     else:
-        unconstrained_cost_per_win = 4_500_000.0
+        unconstrained_cost_per_win = 5_193_442.76
 
+    active_players = merged[~merged["is_dead_money"]]
     qa_summary = {
         "season": season,
         "total_salary_records": int(len(df_salaries)),
-        "players_with_known_salary": int((merged["salary"] > 0).sum()),
+        "players_with_known_salary": int(merged["is_salary_known"].sum()),
+        "players_with_missing_salary": int((~merged["is_salary_known"]).sum()),
         "players_with_stats": int((~merged["is_injured_zero_minutes"]).sum()),
         "players_zero_minutes": int(merged["is_injured_zero_minutes"].sum()),
         "dead_money_allocations": int(merged["is_dead_money"].sum()),
+        "duplicate_active_players": int((active_players["player_id"].value_counts() > 1).sum()),
         "unconstrained_cost_per_win": round(unconstrained_cost_per_win, 2),
     }
 
@@ -248,6 +326,8 @@ def build_master_players(
         "salary",
         "cap_share",
         "is_dead_money",
+        "is_salary_known",
+        "contract_tier",
         "is_injured_zero_minutes",
         "games",
         "minutes",

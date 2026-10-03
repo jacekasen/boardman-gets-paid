@@ -16,6 +16,8 @@ class PlayerRecord(BaseModel):
     salary: float = Field(ge=0.0, description="Annual cap hit in USD")
     cap_share: float = Field(ge=0.0, description="Salary as a percentage of that season's salary cap")
     is_dead_money: bool = Field(default=False, description="Flagged true if waived/stretched dead salary allocation")
+    is_salary_known: bool = Field(default=True, description="False if salary was missing from source and unverified")
+    contract_tier: str = Field(default="Standard", description="Contract tier: Max, Mid-Level, Rookie Scale, Minimum, Two-Way / Unknown")
     is_injured_zero_minutes: bool = Field(default=False, description="Flagged true if player logged zero regular season minutes")
     games: int = Field(default=0, ge=0, description="Regular season games played")
     minutes: float = Field(default=0.0, ge=0.0, description="Total regular season minutes played")
@@ -54,8 +56,11 @@ class IngestionReport(BaseModel):
     season: str
     total_salary_records: int
     players_with_known_salary: int
+    players_with_missing_salary: int = 0
     players_with_stats: int
     players_zero_minutes: int
+    dead_money_allocations: int = 0
+    duplicate_active_players: int = 0
     total_teams: int
     teams_bracket_0_sub_tax: int
     teams_bracket_1_tax: int

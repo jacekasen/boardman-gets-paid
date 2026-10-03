@@ -17,7 +17,7 @@ from boardman.config import (
     normalize_team,
 )
 
-DEFAULT_COST_PER_WIN = 5_229_871.98  # Calibrated 2025-26 unconstrained veteran $/WAR
+DEFAULT_COST_PER_WIN = 5_193_442.76  # Calibrated 2025-26 unconstrained veteran $/WAR
 
 
 class PlayerValuation(BaseModel):
@@ -37,6 +37,10 @@ class PlayerValuation(BaseModel):
     friction_tax: float
     net_surplus: float
     surplus_efficiency: float = Field(description="Net Surplus per dollar of cap hit (NSV / Salary)")
+    is_dead_money: bool = False
+    is_salary_known: bool = True
+    contract_tier: str = "Standard"
+    roi_multiple: float | None = Field(default=None, description="Fair Production Value divided by Salary (e.g. 2.5x)")
     uncle_dennis_cash: float = Field(default=0.0, description="Hypothetical off-the-cap circumvention cash")
 
 
@@ -110,25 +114,36 @@ def calculate_player_valuation(
     team = normalize_team(str(data.get("team", "FA")))
     cap_hit = float(data.get("salary", 0.0))
     cap_share = float(data.get("cap_share", (cap_hit / salary_cap) * 100.0 if salary_cap > 0 else 0.0))
+    is_dead_money = bool(data.get("is_dead_money", False))
+    is_salary_known = bool(data.get("is_salary_known", cap_hit > 0))
+    contract_tier = str(data.get("contract_tier", "Standard"))
+
     war = float(data.get(metric_col, data.get("war_projected", data.get("war_vorp", data.get("war", 0.0)))))
-
-    # Fair Production Value
-    fair_value = war * cost_per_win
-
-    # Gross Surplus Value (FV - Cap Hit - any off-cap cash)
     effective_cost = cap_hit + uncle_dennis_cash
-    gross_surplus = fair_value - effective_cost
 
-    # Apron Friction Tax
-    bracket, lambda_tax, friction_tax = compute_apron_friction(
-        cap_hit, team_payroll, salary_cap=salary_cap, friction_lambda=friction_lambda
-    )
+    bracket, lambda_tax = get_team_bracket(team_payroll, friction_lambda=friction_lambda)
 
-    # Net Surplus Value
-    net_surplus = gross_surplus - friction_tax
-
-    # Efficiency: NSV per dollar
-    surplus_efficiency = (net_surplus / cap_hit) if cap_hit > 0 else 0.0
+    if is_dead_money:
+        war = 0.0
+        fair_value = 0.0
+        gross_surplus = -effective_cost
+        friction_tax = 0.0
+        net_surplus = gross_surplus
+        surplus_efficiency = -1.0 if cap_hit > 0 else 0.0
+        roi_multiple = 0.0
+    else:
+        fair_value = war * cost_per_win
+        gross_surplus = fair_value - effective_cost
+        _, _, friction_tax = compute_apron_friction(
+            cap_hit, team_payroll, salary_cap=salary_cap, friction_lambda=friction_lambda
+        )
+        net_surplus = gross_surplus - friction_tax
+        if is_salary_known and cap_hit > 0:
+            surplus_efficiency = net_surplus / cap_hit
+            roi_multiple = round(fair_value / cap_hit, 2)
+        else:
+            surplus_efficiency = 0.0
+            roi_multiple = None
 
     return PlayerValuation(
         player_id=player_id,
@@ -145,6 +160,10 @@ def calculate_player_valuation(
         friction_tax=round(friction_tax, 2),
         net_surplus=round(net_surplus, 2),
         surplus_efficiency=round(surplus_efficiency, 3),
+        is_dead_money=is_dead_money,
+        is_salary_known=is_salary_known,
+        contract_tier=contract_tier,
+        roi_multiple=roi_multiple,
         uncle_dennis_cash=round(uncle_dennis_cash, 2),
     )
 

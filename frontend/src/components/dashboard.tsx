@@ -7,16 +7,13 @@ import {
   ArrowRight,
   ArrowUpRight,
   ChartNoAxesColumnIncreasing,
-  Check,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
   Columns3,
   Layers,
   Search,
-  SlidersHorizontal,
   X,
-  ArrowLeftRight,
   BookOpen,
 } from "lucide-react";
 import {
@@ -26,15 +23,13 @@ import {
   compact,
   initials,
   type Player,
-  type TradeResult,
 } from "@/lib/data";
 
-type View = "overview" | "players" | "teams" | "trade" | "methodology";
+type View = "overview" | "players" | "teams" | "methodology";
 const nav = [
   { id: "overview", label: "Overview", icon: Columns3 },
   { id: "players", label: "Surplus board", icon: ChartNoAxesColumnIncreasing },
   { id: "teams", label: "Team payrolls", icon: Layers },
-  { id: "trade", label: "Trade lab", icon: ArrowLeftRight },
 ] as const;
 const active = league.players.filter((p) => !p.is_dead_money);
 
@@ -60,35 +55,40 @@ export default function Dashboard() {
   const [view, setView] = useState<View>("overview");
   const [query, setQuery] = useState("");
   const [team, setTeam] = useState("all");
-  const [positiveOnly, setPositiveOnly] = useState(false);
+  const [tier, setTier] = useState("all");
+  const [mode, setMode] = useState<"all" | "bargains" | "anchors" | "roi">("all");
   const [sort, setSort] = useState<{
-    key: "net_surplus" | "salary" | "war" | "friction_tax";
+    key: "net_surplus" | "salary" | "war" | "friction_tax" | "fair_value" | "roi_multiple";
     asc: boolean;
   }>({ key: "net_surplus", asc: false });
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Player | null>(null);
-  const [preset, setPreset] = useState<"robust" | "sensitive">("robust");
-  const filtered = useMemo(
-    () =>
-      active
-        .filter(
-          (p) =>
-            (team === "all" || p.team === team) &&
-            (!positiveOnly || p.net_surplus > 0) &&
-            `${p.player_name} ${p.team}`
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .toLowerCase()
-              .includes(
-                query
-                  .normalize("NFD")
-                  .replace(/[\u0300-\u036f]/g, "")
-                  .toLowerCase(),
-              ),
-        )
-        .sort((a, b) => (a[sort.key] - b[sort.key]) * (sort.asc ? 1 : -1)),
-    [query, team, positiveOnly, sort],
-  );
+
+  const filtered = useMemo(() => {
+    return active
+      .filter((p) => {
+        if (team !== "all" && p.team !== team) return false;
+        if (tier !== "all" && p.contract_tier !== tier) return false;
+        if (mode === "bargains" && p.net_surplus <= 0) return false;
+        if (mode === "anchors" && p.net_surplus >= 0) return false;
+        if (mode === "roi" && (!p.is_salary_known || p.roi_multiple === null)) return false;
+        if (query) {
+          const q = query.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const target = `${p.player_name} ${p.team} ${p.contract_tier}`
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase();
+          if (!target.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const valA = (a[sort.key] as number | null | undefined) ?? -999999999;
+        const valB = (b[sort.key] as number | null | undefined) ?? -999999999;
+        return (valA - valB) * (sort.asc ? 1 : -1);
+      });
+  }, [query, team, tier, mode, sort]);
+
   const pageSize = view === "overview" ? 6 : 15;
   const shown = filtered.slice(page * pageSize, (page + 1) * pageSize);
   function navigate(next: View) {
@@ -103,15 +103,18 @@ export default function Dashboard() {
     const cols = [
       "player_name",
       "team",
+      "contract_tier",
       "salary",
       "war",
+      "fair_value",
       "friction_tax",
       "net_surplus",
+      "roi_multiple",
     ] as const;
     const csv = [
       cols.join(","),
       ...filtered.map((p) =>
-        cols.map((k) => `"${String(p[k]).replaceAll('"', '""')}"`).join(","),
+        cols.map((k) => `"${String(p[k] ?? "").replaceAll('"', '""')}"`).join(","),
       ),
     ].join("\n");
     const url = URL.createObjectURL(
@@ -135,10 +138,6 @@ export default function Dashboard() {
     teams: [
       "Every dollar has a consequence.",
       "Track payroll commitments and the thresholds that change the game.",
-    ],
-    trade: [
-      "A better way to make the call.",
-      "Test the talent, the salary, and the cost of roster constraints.",
     ],
     methodology: [
       "Good decisions start with clarity.",
@@ -305,40 +304,38 @@ export default function Dashboard() {
                 <section className="insight-panel">
                   <div className="eyebrow">
                     <span className="tiny-line" />
-                    THE APRON EFFECT
+                    CONTRACT EFFICIENCY
                   </div>
                   <h2>
-                    Less salary.
+                    Maximum wins.
                     <br />
-                    More possibility.
+                    Minimum drag.
                   </h2>
                   <p>
-                    A cheaper roster can be a more valuable one. Cleveland’s
-                    apron escape shows why.
+                    Identifying surplus value anomalies: who outperforms their cap hit, and who anchors their franchise.
                   </p>
                   <div className="trade-mini">
                     <span>
-                      <b>CLE</b>Max Strus
+                      <b>TOP BARGAIN</b>Victor Wembanyama
                     </span>
                     <ArrowRight size={17} />
                     <span>
-                      <b>DAL</b>Caleb Martin
+                      <b>+$59.0M</b>Surplus
                     </span>
                   </div>
                   <div className="insight-value">
-                    <span>MODELLED NET SURPLUS GAIN</span>
+                    <span>LEAGUE SURPLUS LEADER</span>
                     <strong>
-                      +$15.29<span>M</span>
+                      +$79.2<span>M</span>
                     </strong>
-                    <small>Including roster-wide friction relief</small>
+                    <small>Nikola Jokić (Denver Nuggets)</small>
                   </div>
                   <button
                     onClick={() => {
-                      setPreset("robust");
-                      navigate("trade");
+                      navigate("players");
                     }}
                   >
-                    Explore this trade <ArrowUpRight size={17} />
+                    Explore surplus board <ArrowUpRight size={17} />
                   </button>
                 </section>
               </div>
@@ -388,6 +385,63 @@ export default function Dashboard() {
                   )}
                 </label>
                 <div className="table-filters">
+                  <div className="mode-pills" role="radiogroup" aria-label="Arbitrage preset">
+                    <button
+                      className={`mode-pill ${mode === "all" ? "active" : ""}`}
+                      onClick={() => {
+                        setMode("all");
+                        setSort({ key: "net_surplus", asc: false });
+                        setPage(0);
+                      }}
+                    >
+                      All
+                    </button>
+                    <button
+                      className={`mode-pill ${mode === "bargains" ? "active" : ""}`}
+                      onClick={() => {
+                        setMode("bargains");
+                        setSort({ key: "net_surplus", asc: false });
+                        setPage(0);
+                      }}
+                    >
+                      Top Bargains
+                    </button>
+                    <button
+                      className={`mode-pill ${mode === "anchors" ? "active" : ""}`}
+                      onClick={() => {
+                        setMode("anchors");
+                        setSort({ key: "net_surplus", asc: true });
+                        setPage(0);
+                      }}
+                    >
+                      Top Anchors
+                    </button>
+                    <button
+                      className={`mode-pill ${mode === "roi" ? "active" : ""}`}
+                      onClick={() => {
+                        setMode("roi");
+                        setSort({ key: "roi_multiple", asc: false });
+                        setPage(0);
+                      }}
+                    >
+                      Highest ROI
+                    </button>
+                  </div>
+                  <select
+                    aria-label="Filter by contract tier"
+                    value={tier}
+                    onChange={(e) => {
+                      setTier(e.target.value);
+                      setPage(0);
+                    }}
+                  >
+                    <option value="all">All contract tiers</option>
+                    <option value="Rookie Scale">Rookie Scale</option>
+                    <option value="Max / Supermax">Max / Supermax</option>
+                    <option value="Mid-Level">Mid-Level</option>
+                    <option value="Minimum / Rotation">Minimum / Rotation</option>
+                    <option value="Two-Way / Unknown">Two-Way / Unknown</option>
+                  </select>
                   <select
                     aria-label="Filter by team"
                     value={team}
@@ -405,17 +459,6 @@ export default function Dashboard() {
                         </option>
                       ))}
                   </select>
-                  <button
-                    className={`button filter-button ${positiveOnly ? "selected" : ""}`}
-                    aria-pressed={positiveOnly}
-                    onClick={() => {
-                      setPositiveOnly(!positiveOnly);
-                      setPage(0);
-                    }}
-                  >
-                    <SlidersHorizontal size={14} />
-                    Positive surplus
-                  </button>
                 </div>
               </div>
               <div className="table-scroll">
@@ -425,12 +468,14 @@ export default function Dashboard() {
                       <th className="rank">#</th>
                       <th>PLAYER</th>
                       <th>TEAM</th>
+                      <th>TIER</th>
                       {(
                         [
                           ["salary", "SALARY"],
                           ["war", "PROJ. WAR"],
-                          ["friction_tax", "APRON FRICTION"],
+                          ["fair_value", "PRODUCTION"],
                           ["net_surplus", "NET SURPLUS"],
+                          ["roi_multiple", "ROI MULTIPLE"],
                         ] as const
                       ).map(([key, label]) => (
                         <th
@@ -484,15 +529,39 @@ export default function Dashboard() {
                         <td>
                           <span className="team-pill">{p.team}</span>
                         </td>
-                        <td className="numeric">{money(p.salary)}</td>
-                        <td className="numeric">{p.war.toFixed(2)}</td>
-                        <td className="numeric muted">
-                          {p.friction_tax ? money(-p.friction_tax) : "—"}
+                        <td>
+                          <span
+                            className={`tier-badge tier-${(p.contract_tier || "Standard")
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]/g, "-")}`}
+                          >
+                            {p.contract_tier}
+                          </span>
                         </td>
+                        <td className="numeric">
+                          {p.is_salary_known ? (
+                            money(p.salary)
+                          ) : (
+                            <span className="muted" title="Two-way or non-guaranteed salary unverified in cap ledger">
+                              Two-Way / ~0
+                            </span>
+                          )}
+                        </td>
+                        <td className="numeric">{p.war.toFixed(2)}</td>
+                        <td className="numeric">{money(p.fair_value)}</td>
                         <td
                           className={`numeric surplus ${p.net_surplus >= 0 ? "positive" : "negative"}`}
                         >
                           {money(p.net_surplus, true)}
+                        </td>
+                        <td className="numeric">
+                          {p.roi_multiple !== null && p.roi_multiple !== undefined ? (
+                            <strong className={p.roi_multiple >= 1.0 ? "positive" : "negative"}>
+                              {p.roi_multiple.toFixed(2)}x
+                            </strong>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
                         </td>
                         <td>
                           <button
@@ -512,14 +581,16 @@ export default function Dashboard() {
                     <Search size={26} />
                     <h3>No players found</h3>
                     <p>
-                      Try another name or adjust your team and surplus filters.
+                      Try another name or adjust your team and tier filters.
                     </p>
                     <button
                       className="text-button"
                       onClick={() => {
                         setQuery("");
                         setTeam("all");
-                        setPositiveOnly(false);
+                        setTier("all");
+                        setMode("all");
+                        setSort({ key: "net_surplus", asc: false });
                       }}
                     >
                       Reset filters
@@ -595,7 +666,8 @@ export default function Dashboard() {
                       onClick={() => {
                         setTeam(t.team);
                         setQuery("");
-                        setPositiveOnly(false);
+                        setTier("all");
+                        setMode("all");
                         navigate("players");
                       }}
                     >
@@ -626,9 +698,6 @@ export default function Dashboard() {
                 </div>
               </section>
             </>
-          )}
-          {view === "trade" && (
-            <TradeLab preset={preset} onPreset={setPreset} />
           )}
           {view === "methodology" && <Methodology />}
           <footer className="page-footer">
@@ -673,11 +742,23 @@ export default function Dashboard() {
             </div>
             <dl>
               {[
+                ["Contract tier", selected.contract_tier],
+                [
+                  "Salary allocation",
+                  selected.is_salary_known
+                    ? money(selected.salary)
+                    : "Two-Way / Unverified",
+                ],
                 ["Projected WAR", selected.war.toFixed(2)],
                 ["Fair production value", money(selected.fair_value)],
-                ["Contract salary", money(selected.salary)],
                 ["Gross surplus", money(selected.gross_surplus, true)],
-                ["Apron friction", money(selected.friction_tax)],
+                ["Apron friction drag", money(selected.friction_tax)],
+                [
+                  "ROI efficiency multiple",
+                  selected.roi_multiple !== null && selected.roi_multiple !== undefined
+                    ? `${selected.roi_multiple.toFixed(2)}x`
+                    : "N/A",
+                ],
                 ["Team payroll bracket", brackets[selected.bracket]],
               ].map(([k, v]) => (
                 <div key={k}>
@@ -695,7 +776,8 @@ export default function Dashboard() {
               onClick={() => {
                 setTeam(selected.team);
                 setQuery("");
-                setPositiveOnly(false);
+                setTier("all");
+                setMode("all");
                 setSelected(null);
                 navigate("players");
               }}
@@ -814,259 +896,6 @@ function Scatter({ onSelect }: { onSelect: (p: Player) => void }) {
         </div>
       )}
     </div>
-  );
-}
-
-function TradeLab({
-  preset,
-  onPreset,
-}: {
-  preset: "robust" | "sensitive";
-  onPreset: (p: "robust" | "sensitive") => void;
-}) {
-  const [a, setA] = useState("CLE");
-  const [b, setB] = useState(preset === "robust" ? "DAL" : "DET");
-  const find = (name: string) =>
-    active.find((p) => p.player_name === name)?.player_id ?? "";
-  const [sendA, setSendA] = useState<string[]>([
-    find(preset === "robust" ? "Max Strus" : "Jarrett Allen"),
-  ]);
-  const [sendB, setSendB] = useState<string[]>([
-    find(preset === "robust" ? "Caleb Martin" : "Isaiah Stewart"),
-  ]);
-  const [result, setResult] = useState<TradeResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  function applyPreset(p: "robust" | "sensitive") {
-    onPreset(p);
-    setA("CLE");
-    setB(p === "robust" ? "DAL" : "DET");
-    setSendA([find(p === "robust" ? "Max Strus" : "Jarrett Allen")]);
-    setSendB([find(p === "robust" ? "Caleb Martin" : "Isaiah Stewart")]);
-    setResult(null);
-    setError("");
-  }
-  async function evaluate() {
-    setLoading(true);
-    setError("");
-    setResult(null);
-    try {
-      const response = await fetch("/api/trade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          team_a: a,
-          team_b: b,
-          send_a: sendA,
-          send_b: sendB,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Unable to evaluate this trade.");
-      setResult(data);
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Unable to connect to the engine.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-  return (
-    <>
-      <div className="presets">
-        <span>START WITH A CASE STUDY</span>
-        <button
-          disabled={loading}
-          className={preset === "robust" ? "selected" : ""}
-          onClick={() => applyPreset("robust")}
-        >
-          The apron escape <ArrowUpRight size={14} />
-        </button>
-        <button
-          disabled={loading}
-          className={preset === "sensitive" ? "selected" : ""}
-          onClick={() => applyPreset("sensitive")}
-        >
-          The talent trade-off <ArrowUpRight size={14} />
-        </button>
-      </div>
-      <div className="trade-grid">
-        {[
-          { code: a, other: b, set: setA, send: sendA, setSend: setSendA },
-          { code: b, other: a, set: setB, send: sendB, setSend: setSendB },
-        ].map((side, i) => (
-          <section className="panel trade-side" key={i}>
-            <span className="eyebrow">
-              {i === 0 ? "TEAM A" : "TEAM B"} / OUTGOING PLAYERS
-            </span>
-            <select
-              aria-label={`Team ${i === 0 ? "A" : "B"}`}
-              disabled={loading}
-              value={side.code}
-              onChange={(e) => {
-                side.set(e.target.value);
-                side.setSend([]);
-                setResult(null);
-                setError("");
-              }}
-            >
-              {league.teams
-                .toSorted((x, y) => x.name.localeCompare(y.name))
-                .filter((t) => t.team !== side.other)
-                .map((t) => (
-                  <option key={t.team} value={t.team}>
-                    {t.name}
-                  </option>
-                ))}
-            </select>
-            <div className="trade-payroll">
-              <span>
-                Current payroll{" "}
-                <b>
-                  {compact(
-                    league.teams.find((t) => t.team === side.code)!
-                      .total_payroll,
-                  )}
-                </b>
-              </span>
-              <span className="subtle-tag">
-                {
-                  brackets[
-                    league.teams.find((t) => t.team === side.code)!.bracket
-                  ]
-                }
-              </span>
-            </div>
-            <div className="roster-select">
-              {active
-                .filter((p) => p.team === side.code)
-                .toSorted((x, y) => y.salary - x.salary)
-                .map((p) => (
-                  <label
-                    key={p.player_id}
-                    className={side.send.includes(p.player_id) ? "checked" : ""}
-                  >
-                    <input
-                      type="checkbox"
-                      disabled={loading}
-                      checked={side.send.includes(p.player_id)}
-                      onChange={(e) => {
-                        side.setSend(
-                          e.target.checked
-                            ? [...side.send, p.player_id]
-                            : side.send.filter((id) => id !== p.player_id),
-                        );
-                        setResult(null);
-                        setError("");
-                      }}
-                    />
-                    <span>
-                      {p.player_name}
-                      <small>{p.war.toFixed(2)} projected WAR</small>
-                    </span>
-                    <strong>{money(p.salary)}</strong>
-                  </label>
-                ))}
-            </div>
-            <div className="outgoing-total">
-              <span>{side.send.length} selected · Outgoing salary</span>
-              <strong>
-                {money(
-                  active
-                    .filter(
-                      (p) =>
-                        p.team === side.code && side.send.includes(p.player_id),
-                    )
-                    .reduce((s, p) => s + p.salary, 0),
-                )}
-              </strong>
-            </div>
-          </section>
-        ))}
-      </div>
-      <div className="trade-actions">
-        <p>
-          Includes salary matching, apron restrictions, and roster-wide surplus
-          changes.
-        </p>
-        <button
-          className="button primary"
-          onClick={evaluate}
-          disabled={loading || (!sendA.length && !sendB.length)}
-        >
-          {loading ? "Evaluating trade…" : "Evaluate trade"}
-          <ArrowRight size={16} />
-        </button>
-      </div>
-      {error && (
-        <div role="alert" className="error-message">
-          {error}
-        </div>
-      )}
-      {result && (
-        <section className="panel trade-results" aria-live="polite">
-          <div className="panel-heading">
-            <div>
-              <h2>
-                {result.is_legal
-                  ? "This trade clears the model’s CBA checks."
-                  : "This trade does not clear the CBA checks."}
-              </h2>
-              <p>
-                Legality and value are separate questions. Here is the impact
-                for each team.
-              </p>
-            </div>
-            <span
-              className={`result-badge ${result.is_legal ? "positive" : "negative"}`}
-            >
-              {result.is_legal ? <Check size={15} /> : <X size={15} />}{" "}
-              {result.is_legal ? "Legal trade" : "Illegal trade"}
-            </span>
-          </div>
-          {result.violations.length > 0 && (
-            <ul className="violations">
-              {result.violations.map((v, i) => (
-                <li key={i}>{v}</li>
-              ))}
-            </ul>
-          )}
-          <div className="result-grid">
-            {[result.delta_a, result.delta_b].map((d) => (
-              <div key={d.team}>
-                <span className="eyebrow">
-                  {league.teams.find((t) => t.team === d.team)?.name}
-                </span>
-                <strong className={d.delta_nsv >= 0 ? "positive" : "negative"}>
-                  {money(d.delta_nsv, true)}
-                </strong>
-                <span>Net surplus change</span>
-                <dl>
-                  <div>
-                    <dt>Payroll</dt>
-                    <dd>
-                      {compact(d.pre_payroll)} → {compact(d.post_payroll)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Friction relief</dt>
-                    <dd>{money(d.friction_relief, true)}</dd>
-                  </div>
-                  <div>
-                    <dt>Apron status</dt>
-                    <dd>
-                      {brackets[d.pre_bracket]} → {brackets[d.post_bracket]}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-    </>
   );
 }
 

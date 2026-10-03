@@ -100,3 +100,63 @@ def test_ingestion_report_validity():
     assert report.total_teams == 30
     assert report.total_salary_records >= 600
     assert report.unconstrained_cost_per_win > 3_000_000
+    assert report.duplicate_active_players == 0
+    assert report.dead_money_allocations > 0
+
+
+def test_no_duplicate_active_player_records():
+    """Verify that every NBA player has at most one active (non-dead-money) contract record."""
+    df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
+    active = df_players[~df_players["is_dead_money"]]
+    counts = active["player_id"].value_counts()
+    multi = counts[counts > 1]
+    assert len(multi) == 0, f"Found {len(multi)} players with duplicate active contracts: {multi.index.tolist()}"
+
+
+def test_kyle_anderson_single_active_team_and_dead_money():
+    """Verify Kyle Anderson is active on MIN with positive WAR, while MEM is dead money with 0.0 WAR."""
+    df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
+    kyle = df_players[df_players["player_id"] == "anderky01"]
+    assert len(kyle) == 2, "Expected exactly 2 salary records for Kyle Anderson (MEM & MIN)"
+
+    min_row = kyle[kyle["team"] == "MIN"].iloc[0]
+    mem_row = kyle[kyle["team"] == "MEM"].iloc[0]
+
+    # Active on Minnesota
+    assert not min_row["is_dead_money"]
+    assert min_row["war_projected"] > 1.0
+
+    # Dead money on Memphis
+    assert mem_row["is_dead_money"]
+    assert mem_row["war_projected"] == 0.0
+    assert mem_row["war_vorp"] == 0.0
+
+
+def test_dead_money_has_strictly_zero_war():
+    """Verify that every flagged dead money record contributes strictly 0.0 WAR across all proxies."""
+    df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
+    dead = df_players[df_players["is_dead_money"]]
+    assert len(dead) > 0, "Expected dead money records in league dataset"
+    assert (dead["war_vorp"] == 0.0).all(), "All dead money war_vorp must be 0.0"
+    assert (dead["war_blend"] == 0.0).all(), "All dead money war_blend must be 0.0"
+    assert (dead["war_projected"] == 0.0).all(), "All dead money war_projected must be 0.0"
+
+
+def test_missing_salaries_and_contract_tiers():
+    """Verify missing salaries are explicitly flagged and contract tiers properly classified."""
+    df_players = pd.read_parquet(MASTER_PLAYERS_PARQUET)
+    assert "is_salary_known" in df_players.columns
+    assert "contract_tier" in df_players.columns
+
+    # Missing salary handling
+    zero_sal = df_players[df_players["salary"] == 0]
+    assert (zero_sal["is_salary_known"] == False).all()  # noqa: E712
+    assert (zero_sal["contract_tier"] == "Two-Way / Unknown").all()
+
+    # Tier assignments for notable players
+    wemby = df_players[df_players["player_id"] == "wembavi01"].iloc[0]
+    assert wemby["contract_tier"] == "Rookie Scale"
+
+    jokic = df_players[df_players["player_id"] == "jokicni01"].iloc[0]
+    assert jokic["contract_tier"] == "Max / Supermax"
+

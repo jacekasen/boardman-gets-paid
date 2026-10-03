@@ -11,12 +11,24 @@ DATA_DIR = REPO_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 
-# Source data paths in local nba monorepo
+# Source data paths: prefer in-repo data/raw directory, fallback to local ~/dev/nba if needed
 NBA_SOURCE_DIR = Path.home() / "dev" / "nba" / "data"
-SOURCE_PLAYER_SALARIES = NBA_SOURCE_DIR / "modeling" / "player_salaries.csv"
-SOURCE_TEAM_SALARIES = NBA_SOURCE_DIR / "modeling" / "team_season_salaries.csv"
-SOURCE_PLAYER_SEASONS = NBA_SOURCE_DIR / "modeling" / "player_seasons.csv"
-SOURCE_PLAYER_STATS_RAW = NBA_SOURCE_DIR / "nba_player_stats.csv"
+
+
+def _resolve_source_path(rel_path: str) -> Path:
+    local_path = RAW_DATA_DIR / rel_path
+    if local_path.exists():
+        return local_path
+    external_path = NBA_SOURCE_DIR / rel_path
+    if external_path.exists():
+        return external_path
+    return local_path
+
+
+SOURCE_PLAYER_SALARIES = _resolve_source_path("modeling/player_salaries.csv")
+SOURCE_TEAM_SALARIES = _resolve_source_path("modeling/team_season_salaries.csv")
+SOURCE_PLAYER_SEASONS = _resolve_source_path("modeling/player_seasons.csv")
+SOURCE_PLAYER_STATS_RAW = _resolve_source_path("nba_player_stats.csv")
 
 # Target processed data outputs
 MASTER_PLAYERS_PARQUET = PROCESSED_DATA_DIR / "master_players_2025_26.parquet"

@@ -2,12 +2,15 @@
   "season": "2025-26",
   "total_salary_records": 659,
   "players_with_known_salary": 513,
+  "players_with_missing_salary": 146,
   "players_with_stats": 634,
   "players_zero_minutes": 25,
+  "dead_money_allocations": 57,
+  "duplicate_active_players": 0,
   "total_teams": 30,
   "teams_bracket_0_sub_tax": 21,
   "teams_bracket_1_tax": 6,
   "teams_bracket_2_first_apron": 2,
   "teams_bracket_3_second_apron": 1,
-  "unconstrained_cost_per_win": 5229871.98
+  "unconstrained_cost_per_win": 5178563.68
 }

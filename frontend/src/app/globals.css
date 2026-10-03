@@ -1959,3 +1959,66 @@ dd {
 .player-dialog:not([open]) {
   display: none;
 }
+
+.tier-badge {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  white-space: nowrap;
+}
+.tier-rookie-scale {
+  background: #eef5ea;
+  color: #3f6e4a;
+  border: 1px solid #d2e3cb;
+}
+.tier-max---supermax {
+  background: #fdf3e7;
+  color: #a45318;
+  border: 1px solid #f6d8b6;
+}
+.tier-mid-level {
+  background: #f0f2f5;
+  color: #435b71;
+  border: 1px solid #d8dee6;
+}
+.tier-minimum---rotation {
+  background: #f5f6f1;
+  color: #6d7568;
+  border: 1px solid #e2e5dc;
+}
+.tier-two-way---unknown {
+  background: #f8f8f8;
+  color: #8f948b;
+  border: 1px dashed #dcded8;
+}
+
+.mode-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mode-pill {
+  font-size: 9px;
+  font-weight: 550;
+  padding: 6px 11px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #636d5b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mode-pill:hover {
+  background: #f5f6f1;
+  color: var(--ink);
+}
+.mode-pill.active {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
