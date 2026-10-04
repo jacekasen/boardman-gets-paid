@@ -35,6 +35,10 @@ ehthumbs.db
 Thumbs.db
 
 # Data directories (raw / cached downloads)
+# data/raw/ is scraped from Basketball-Reference/Sports-Reference; their terms
+# forbid redistributing it as a database. Kept locally for re-running
+# ingestion, never committed. See docs/data-contract.md.
+data/raw/
 data/cache/
 *.tmp
 
